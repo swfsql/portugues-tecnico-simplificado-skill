@@ -33,7 +33,24 @@ The structural rules it checks are mechanical — you can point at the word or p
 
 The linter checks structural patterns only. It does not compare an original text with a rewrite, verify that requirement strength stayed the same, or prove that the rewrite preserved meaning. A zero-violation result means that the configured structural checks found no problems.
 
-The deterministic linter checks semicolons, phrasal verbs, nominalizations, marketing adjectives, passive voice, present-perfect forms, long sentences, synonym rotation, and dangling conjunctions in supported list items. It never flags hedges or modality.
+The deterministic linter checks semicolons, phrasal verbs, nominalizations, marketing adjectives, passive voice, present-perfect forms, em dashes, long sentences, synonym rotation, and dangling conjunctions in supported list items. It never flags hedges or modality.
+
+The linter reads Markdown per paragraph: a sentence that wraps over several lines counts as one sentence, and the finding points at its first word. It skips code fences, `$$` math blocks, HTML comments, link definitions and YAML front matter. Inline code and inline math count as one word each, and link targets do not count. Columns stay exact.
+
+For Rust source files (`*.rs`, or `--lang rust`), the linter reads only the prose, never the code. `--parts` selects the prose (default `docs,comments`):
+
+- `docs`: `///`, `//!`, `/** */` and `/*! */`, read as Markdown.
+- `comments`: `//` and `/* */`.
+- `messages`: string literals inside `panic!`, `assert!`, `expect`, `println!` and similar calls. Messages are error text, so they get the strict cap of 20 words (`--max-words-strict`).
+- `strings`: every string literal with three or more words.
+
+Other options:
+
+- `--max-words N` sets the sentence cap (default 25).
+- `--summary` prints one line per file, with the worst file first.
+- `--enable history` adds an opt-in rule that flags changelog phrasing ("no longer", "previously", "currently") in documentation of the current state.
+
+An unknown rule name in `--disable` or `--enable` is an error.
 
 The dangling-conjunction rule checks list markers at the start of a line with zero to three leading spaces and ASCII spaces after the marker. It supports unordered markers `-`, `*`, and `+`, and ordered numeric markers that end in `.` or `)`, such as `1.` or `1)`. It checks indented continuation lines up to the final meaningful line. It does not parse list syntax inside blockquotes, lazy continuation, or full nested-list semantics. A standalone line with four or more leading spaces is not treated as a list marker. Within an active list item, indentation at the computed content column is treated as continuation text. Fence detection follows the linter's existing simple rule: a stripped line beginning with three backticks or three tildes toggles the fence state.
 

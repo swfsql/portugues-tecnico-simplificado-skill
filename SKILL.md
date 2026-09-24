@@ -88,7 +88,7 @@ These six habits cover most of what makes machine-written English hard to parse.
 
 1. Pick the mode (Strict or STE-flavored). Say which only when the user asked for the rule table — see Output Format.
 2. Read the input text once for meaning — do not start rewriting before you understand what it must still say afterward.
-3. Walk it sentence by sentence. Flag every rule violation from the Core Rewrite Rules tables and every habit from the Scan Checklist. In STE-flavored mode, flag the lexical rules but do not enforce them. For a mechanical first pass over the structural rules, run `scripts/ste-lint.py` (stdin or file args, `--json` for structured output); it checks semicolons, sentence length, phrasal verbs, nominalization, marketing adjectives, synonym rotation, dangling-conjunction in supported list items, passive voice, and compound tenses, and by design never flags hedges or modality. `--baseline N` tolerates N hard violations (for adopting on existing docs); `--disable rule1,rule2` silences named rules.
+3. Walk it sentence by sentence. Flag every rule violation from the Core Rewrite Rules tables and every habit from the Scan Checklist. In STE-flavored mode, flag the lexical rules but do not enforce them. For a mechanical first pass over the structural rules, run `scripts/ste-lint.py` (stdin or file args, `--json` for structured output). It checks semicolons, sentence length, phrasal verbs, nominalization, marketing adjectives, synonym rotation, dangling conjunctions in list items, passive voice, compound tenses and em dashes. By design, it never flags hedges or modality. It reads Markdown per paragraph, so a sentence that wraps over several lines counts as one sentence. In a `.rs` file it reads only the prose: doc comments and comments, and with `--parts messages` also the strings of `panic!`/`expect`/`assert!` calls, at the strict word cap. `--baseline N` tolerates N hard violations (for adopting on existing docs). `--disable rule1,rule2` silences named rules, `--max-words N` sets the cap, and `--summary` ranks many files by violations.
 4. Rewrite each flagged sentence to fix the violation while preserving the original meaning exactly. If a rewrite would drop necessary precision (a safety condition, a scope qualifier, a number), keep the longer phrasing and flag it instead of silently simplifying.
    - **Check modality before you commit to a rewrite.** Hedges ("may", "could", "sometimes", "is likely to") carry the author's confidence, and confidence is content. A shorter sentence that upgrades a hedge to a fact is not a simplification — it is a different claim. This is the most common way a well-intentioned STE rewrite goes wrong, because hedges are exactly what a length cap tempts you to cut.
    - Never add a fact the source did not state. A rewrite that reads better because it supplies a cause, a frequency, or a mechanism has stopped being a rewrite.
@@ -114,6 +114,18 @@ Mode: Strict. 7 violations found.
 
 Follow the table with a one-line note on anything you deliberately did **not** simplify, and why (usually: simplifying would lose required precision).
 
+## Documentation in a Code Repository
+
+When the text lives in a repository (code comments, docstrings, READMEs, help text), edit the files in place. Do not print the text. Also apply these rules:
+
+- **Mode by text type.** Comments, docstrings and Markdown docs are STE-flavored. Error, panic, log and CLI help strings are Strict.
+- **Touch only prose.** Do not change code, identifiers, code spans, link targets or heading text (headings are link anchors). Keep the line width of the file.
+- **Search the tests before you change a message.** Tests often match part of an error string (`should_panic(expected = …)`, `assert!(msg.contains(…))`, snapshot files). Keep every matched substring.
+- **Update every copy.** Help text or a doc paragraph can have a verbatim copy in another file. Change all copies together.
+- **Doc versus code.** When a comment and the code disagree, do not silently make the prose fit either side. Show the evidence (the code line, a test, a small program) and ask which side is the intent.
+- **Describe the current state.** Documentation says what the code does now, not how it changed. `--enable history` flags changelog phrasing ("no longer", "previously", "currently").
+- **Build and test afterwards.** Run the doc build and the tests. A moved doc comment can change how its links resolve.
+
 ## Boundaries
 
 **Will:**
@@ -136,4 +148,4 @@ Follow the table with a one-line note on anything you deliberately did **not** s
 
 - **`references/writing-rules.md`** — fuller summary of the 9 rule sections and dictionary structure, with citations to the official standard and secondary sources.
 - **`examples/before-after.md`** — worked examples, including official STE examples and agent-output examples built for this skill.
-- **`scripts/ste-lint.py`** — deterministic, stdlib-only linter for the structural rules, including dangling-conjunction in supported list items, plus a synonym-rotation check (one word, one meaning) scoped per file. Exit 1 when hard violations exceed `--baseline` (default 0); advisory findings (passive voice, compound tenses) never fail the run; `--disable` silences named rules. It never flags hedges or modality: those are content, not style, and `--selftest` asserts that "may have failed" passes clean.
+- **`scripts/ste-lint.py`** — deterministic, stdlib-only linter for the structural rules, including dangling conjunctions in list items, plus a synonym-rotation check (one word, one meaning) scoped per file. It reads Markdown per paragraph, and reads only the prose of Rust files (`--lang`, `--parts`). Exit 1 when hard violations exceed `--baseline` (default 0). Advisory findings (passive voice, compound tenses, em dashes, dual-use phrasal verbs) never fail the run. `--disable` silences named rules, `--enable history` adds the opt-in changelog-phrasing rule, and an unknown rule name is an error (exit 2). It never flags hedges or modality: those are content, not style, and `--selftest` asserts that "may have failed" passes clean.

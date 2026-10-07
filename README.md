@@ -1,117 +1,133 @@
-# ASD-STE100 Skill — Simplified Technical English for Agent Output
+# Skill Português Técnico Simplificado: o STE100 para a saída de agentes em português
 
-A Claude Code skill that rewrites dense, ambiguous English into [ASD-STE100 Simplified Technical English](https://www.asd-ste100.org/) (STE) — the controlled-language standard the aerospace and defense industry built so aircraft maintenance instructions cannot be misread.
+Esta é uma skill do Claude Code que reescreve um português denso e ambíguo. Ela usa as regras do [ASD-STE100 Simplified Technical English](https://www.asd-ste100.org/) (STE), adaptadas ao português do Brasil. O STE é uma norma de linguagem controlada da indústria aeroespacial e de defesa. Ela existe para que ninguém leia errado as instruções de manutenção de aeronaves.
 
-This skill repurposes that same discipline for a different reader: an **AI agent** parsing another agent's output, a tool description, an error message, or an inter-agent instruction, with no human in the loop to resolve ambiguity.
+Esta skill usa a mesma disciplina para outro leitor: um **agente de IA**. Esse agente interpreta a saída de outro agente, a descrição de uma ferramenta, uma mensagem de erro ou uma instrução entre agentes. Não há um humano para resolver ambiguidades.
 
-## Why STE, and Why for Agents
+Esta skill é uma adaptação da skill [asd-ste100](https://github.com/danyuchn/asd-ste100-skill), que faz o mesmo trabalho para o inglês.
 
-STE exists because a misread instruction on an aircraft can kill people, and the intended readers were often not native English speakers with no author to call for clarification. The standard's fix: one meaning per word, active voice, simple tenses, one instruction per sentence, short sentences, no dropped words.
+## Por que o STE, e por que para agentes
 
-An LLM agent parsing another agent's output is in a strikingly similar position — no back-channel, no way to ask "did you mean X or Y?" The same rules that keep a mechanic from misreading a torque spec keep a downstream agent from misreading a tool description or an inter-agent message.
+O STE existe porque uma instrução mal lida numa aeronave pode matar pessoas. Os leitores da norma muitas vezes não falavam inglês como língua materna e não tinham um autor para pedir esclarecimentos. A solução da norma: um significado por palavra, voz ativa, tempos simples, uma instrução por frase, frases curtas e nenhuma palavra omitida.
 
-## Before / After
+Um agente que interpreta a saída de outro agente está numa posição muito parecida. Ele não tem canal de volta nem como perguntar "você quis dizer X ou Y?". As regras que impedem um mecânico de ler errado uma especificação de torque também protegem um agente. Com elas, o agente não lê errado a descrição de uma ferramenta ou uma mensagem entre agentes.
 
-| Before | After |
+## Por que uma versão em português
+
+Não existe norma de linguagem controlada para o português. O STE é só para o inglês, e uma tradução direta das regras não funciona. O português não tem phrasal verbs, mas tem verbo-suporte e locuções prolixas. O pretérito perfeito composto ("tem falhado") tem outro sentido que o present perfect do inglês. O português tem também fontes de ambiguidade que o inglês não tem. Exemplos: o "dever" (ordem ou estimativa?), o "seu" com dois donos possíveis e o sujeito oculto.
+
+Há ainda o traduzês. Os modelos de linguagem aprendem sobretudo com texto em inglês. O português que eles escrevem traz decalques: "eventualmente" no sentido de "por fim", "endereçar o problema", "suportar o formato". Outros sinais do traduzês são o gerundismo e "o mesmo" no lugar de pronome. Esta skill trata esses casos como regras próprias.
+
+A Lei nº 15.263/2025 (Política Nacional de Linguagem Simples) pede ordem direta, frases curtas, voz ativa e verbos no lugar de substantivos. São regras do STE. A ABNT NBR ISO 24495-1:2024 é a norma brasileira de linguagem simples.
+
+## Antes e depois
+
+| Antes | Depois |
 |---|---|
-| "This tool will attempt to synchronize state across the various backends that have been configured, and if a conflict is detected it may resolve it automatically depending on the strategy that has been set, or otherwise it will surface the conflict for manual review." | "The tool tries to synchronize state across the configured backends. If it finds a conflict, it reads the configured strategy. If the strategy allows automatic resolution, the tool may resolve the conflict without a user. If the tool does not resolve the conflict, it reports the conflict for manual review." |
-| "An error may have occurred while processing your request due to a possible mismatch in the expected data format, which could be caused by an outdated client version." | "Your request may have failed. The cause may be a data format that does not match what the server expects. An outdated client can cause this mismatch. Check your client version." |
+| "Esta ferramenta irá tentar realizar a sincronização do estado entre os diversos backends que foram configurados, e caso um conflito seja detectado ela poderá resolvê-lo automaticamente dependendo da estratégia que tiver sido definida, ou caso contrário irá apresentar o conflito para revisão manual." | "A ferramenta tenta sincronizar o estado entre os backends configurados. Se encontrar um conflito, a ferramenta lê a estratégia configurada. Se a estratégia permitir resolução automática, a ferramenta pode resolver o conflito automaticamente. Se a ferramenta não resolver o conflito, ela encaminha o conflito para revisão manual." |
+| "Um erro pode ter ocorrido durante o processamento da sua requisição devido a uma possível incompatibilidade no formato de dados esperado, o que poderia ser causado por uma versão desatualizada do cliente." | "Sua requisição pode ter falhado. A causa pode ser um formato de dados diferente do formato que o servidor espera. Uma versão desatualizada do cliente pode causar essa diferença. Verifique a versão do cliente." |
 
-More examples, including illustrations of the official STE rules themselves, in [`examples/before-after.md`](examples/before-after.md).
+Há mais exemplos em [`examples/antes-depois.md`](examples/antes-depois.md), inclusive ilustrações das regras do STE e das regras que só o português tem.
 
-## What This Skill Does
+## O que esta skill faz
 
-1. Picks a mode. **Strict** covers procedures, error messages, and tool descriptions. **STE-flavored** covers READMEs, PR descriptions, and explanatory prose. STE-flavored keeps the sentence discipline but not the fixed-vocabulary lockdown.
-2. Reads the input English text for meaning.
-3. Flags every rule violation sentence-by-sentence: ambiguous word choice, present-perfect/complex tense, passive voice with an unclear actor, multi-instruction sentences, oversized noun clusters, dropped words, sentences over length, phrasal verbs, nominalized actions, semicolons, hedge stacks, and marketing adjectives.
-4. Rewrites each flagged sentence — without dropping any fact, condition, or scope qualifier from the original. If a shorter phrasing would lose required precision, it keeps the longer phrasing and flags the trade-off instead of silently simplifying.
-5. Outputs the rewritten text on its own — no preamble, no mode announcement, no change summary — plus a one-line `Kept as-is:` note when it deliberately left something unsimplified.
+1. Escolhe um modo. O modo **Estrito** cobre procedimentos, mensagens de erro e descrições de ferramentas. O modo **Flexível** cobre READMEs, descrições de pull request e prosa explicativa. O modo Flexível mantém a disciplina da frase, mas não o vocabulário fixo.
+2. Lê o texto de entrada pelo sentido.
+3. Marca cada violação, frase por frase. Exemplos: escolha ambígua de palavras, tempo composto, voz passiva com quem age indefinido, várias instruções numa frase, cadeias de "de", palavras omitidas, frases longas. Outros: verbo-suporte, locuções prolixas, ponto e vírgula, ressalvas empilhadas, adjetivos de marketing, gerundismo e decalques do inglês.
+4. Reescreve cada frase marcada, sem perder nenhum fato, condição ou limite de escopo do original. Se uma forma mais curta perderia uma precisão necessária, a skill mantém a forma longa e sinaliza a troca. Ela não simplifica em silêncio.
+5. Entrega só o texto reescrito: sem preâmbulo, sem anúncio de modo, sem resumo das mudanças. Quando ela deixa algo sem simplificar de propósito, acrescenta uma linha `Mantido como está:`.
 
-Ask for the reasoning ("show the diff", "which rules did it break") and it outputs a before/after table naming each rule instead.
+Peça o raciocínio ("mostre o diff", "quais regras ele quebrou") e a skill entrega uma tabela de antes e depois que nomeia cada regra.
 
-The structural rules it checks are mechanical — you can point at the word or punctuation mark that breaks each one. The rules that depend on ASD's dictionary are flagged as advisory rather than enforced, and the rules that need taste are left to you.
+As regras estruturais que a skill verifica são mecânicas: você aponta a palavra ou o sinal que quebra cada uma. As regras que dependeriam de um dicionário aprovado são só recomendações, porque não existe esse dicionário para o português. As regras que pedem bom gosto ficam com você.
 
-The linter checks structural patterns only. It does not compare an original text with a rewrite, verify that requirement strength stayed the same, or prove that the rewrite preserved meaning. A zero-violation result means that the configured structural checks found no problems.
+## O linter
 
-The deterministic linter checks semicolons, phrasal verbs, nominalizations, marketing adjectives, passive voice, present-perfect forms, em dashes, long sentences, synonym rotation, and dangling conjunctions in supported list items. It never flags hedges or modality.
+`scripts/pts-lint.py` é um linter determinístico que usa só a biblioteca padrão do Python. Ele verifica só padrões estruturais. Ele não compara um texto original com uma reescrita. Ele não verifica se a força de uma exigência continua a mesma e não prova que a reescrita preservou o sentido. Um resultado com zero violações quer dizer que as verificações estruturais configuradas não acharam problemas.
 
-The linter reads Markdown per paragraph: a sentence that wraps over several lines counts as one sentence, and the finding points at its first word. It skips code fences, `$$` math blocks, HTML comments, link definitions and YAML front matter. Inline code and inline math count as one word each, and link targets do not count. Columns stay exact.
+O linter verifica:
 
-For Rust source files (`*.rs`, or `--lang rust`), the linter reads only the prose, never the code. `--parts` selects the prose (default `docs,comments`):
+- **Achados obrigatórios** reprovam a execução. São eles: ponto e vírgula, frase longa, locução prolixa, verbo-suporte, adjetivo de marketing e gerundismo. Também a rotação de sinônimos (com as conjugações dos verbos) e a conjunção pendente no fim de item de lista.
+- **Achados consultivos** nunca reprovam a execução. São eles: voz passiva, partícula "se", tempo composto, cadeia de "de", "o mesmo" como pronome, gerúndio depois de vírgula, decalque do inglês e travessão.
 
-- `docs`: `///`, `//!`, `/** */` and `/*! */`, read as Markdown.
-- `comments`: `//` and `/* */`.
-- `messages`: string literals inside `panic!`, `assert!`, `expect`, `println!` and similar calls. Messages are error text, so they get the strict cap of 20 words (`--max-words-strict`).
-- `strings`: every string literal with three or more words.
+O linter nunca marca ressalvas nem modalidade. "Pode ter falhado", "talvez tenha falhado" e "teria falhado" passam limpos, e o autoteste comprova isso. O linter também não verifica a ordem direta, o sujeito oculto, o "seu" ambíguo, o "dever" ambíguo nem a mistura de "tu" e "você". Essas regras precisam de leitura humana ou de um modelo.
 
-Other options:
+O linter lê Markdown por parágrafo. Uma frase quebrada em várias linhas conta como uma frase, e o achado aponta para a primeira palavra dela. O linter ignora blocos de código, blocos de fórmula `$$`, comentários HTML, definições de link e front matter YAML. Código e fórmulas inline contam como uma palavra cada, e os destinos de link não contam. As colunas ficam exatas.
 
-- `--max-words N` sets the sentence cap (default 25).
-- `--summary` prints one line per file, with the worst file first.
-- `--enable history` adds an opt-in rule that flags changelog phrasing ("no longer", "previously", "currently") in documentation of the current state.
+Em arquivos Rust (`*.rs`, ou `--linguagem rust`), o linter lê só a prosa, nunca o código. `--partes` escolhe a prosa (padrão `docs,comentarios`):
 
-An unknown rule name in `--disable` or `--enable` is an error.
+- `docs`: `///`, `//!`, `/** */` e `/*! */`, lidos como Markdown.
+- `comentarios`: `//` e `/* */`.
+- `mensagens`: literais de string dentro de `panic!`, `assert!`, `expect`, `println!` e chamadas parecidas. Mensagens são texto de erro, então usam o limite estrito de 20 palavras (`--max-palavras-estrito`).
+- `literais`: todo literal de string com três palavras ou mais.
 
-The dangling-conjunction rule checks list markers at the start of a line with zero to three leading spaces and ASCII spaces after the marker. It supports unordered markers `-`, `*`, and `+`, and ordered numeric markers that end in `.` or `)`, such as `1.` or `1)`. It checks indented continuation lines up to the final meaningful line. It does not parse list syntax inside blockquotes, lazy continuation, or full nested-list semantics. A standalone line with four or more leading spaces is not treated as a list marker. Within an active list item, indentation at the computed content column is treated as continuation text. Fence detection follows the linter's existing simple rule: a stripped line beginning with three backticks or three tildes toggles the fence state.
+Outras opções:
 
-The intentionally invalid examples/linter-edge-cases.md file demonstrates incomplete Markdown list items. Run python scripts/ste-lint.py examples/linter-edge-cases.md to confirm that the linter reports the two expected findings. The file is a test fixture and should not be used as compliant STE prose.
+- `--max-palavras N` define o limite de palavras por frase (padrão 25).
+- `--resumo` imprime uma linha por arquivo, com o pior arquivo primeiro.
+- `--ativar historico` acrescenta uma regra opcional que marca frases de changelog ("não mais", "anteriormente", "atualmente") em documentação do estado atual.
+- `--linha-de-base N` tolera N violações obrigatórias.
+- `--ajuda` mostra o uso completo, e `--autoteste` roda os testes internos.
 
-It does **not** reproduce ASD's official ~900-word approved dictionary. The standard is free to obtain but not free to redistribute: Issue 9 permits reproduction only with ASD's written authority, or by eight listed categories of organisation that this project does not belong to. This skill applies the underlying *principle* (plainest available word, used the same way every time) rather than checking against a fixed word list. For certified STE-compliant documentation, use the real standard.
+Um nome de regra desconhecido em `--desativar` ou `--ativar` é erro.
 
-Full rule summary and citations: [`references/writing-rules.md`](references/writing-rules.md).
+A regra de conjunção pendente verifica marcadores de lista no começo da linha, com zero a três espaços antes e espaços ASCII depois do marcador. Ela aceita os marcadores `-`, `*` e `+`, e marcadores numéricos que terminam em `.` ou `)`, como `1.` ou `1)`. Ela verifica as linhas de continuação recuadas até a última linha com conteúdo. Ela não interpreta listas dentro de citações, continuação preguiçosa (lazy continuation) nem a semântica completa de listas aninhadas. Uma linha isolada com quatro ou mais espaços antes não conta como marcador de lista. Dentro de um item de lista, o recuo até a coluna do conteúdo conta como texto de continuação. A detecção de blocos de código segue uma regra simples. Uma linha que começa com três crases ou três tils abre ou fecha o bloco.
 
-## Installation
+O arquivo `examples/casos-limite-do-linter.md` é inválido de propósito e mostra itens de lista incompletos. Rode `python scripts/pts-lint.py examples/casos-limite-do-linter.md` e veja que o linter informa os dois achados esperados. O arquivo é um caso de teste e não serve de exemplo de prosa conforme.
 
-### Quick Install (npx skills)
+A skill **não** reproduz o dicionário oficial de cerca de 900 palavras do ASD. A norma é gratuita, mas a redistribuição não é livre. O Issue 9 permite a reprodução só com autorização escrita do ASD ou por oito categorias de organizações. Este projeto não pertence a nenhuma delas. Além disso, o dicionário é de palavras inglesas. Esta skill aplica o *princípio* do dicionário (a palavra mais simples, usada sempre do mesmo jeito), e não uma lista fixa de palavras.
 
-The fastest way to install this skill is the [skills CLI](https://skills.sh/) — no clone, no path setup. Run it from your project root:
+O resumo completo das regras, a adaptação ao português e as citações estão em [`references/regras-de-redacao.md`](references/regras-de-redacao.md).
+
+## Instalação
+
+Copie ou clone este diretório para uma das pastas de skills do Claude Code:
+
+- `~/.claude/skills/simplified-technical-portuguese`: a skill fica disponível em todos os projetos.
+- `.claude/skills/simplified-technical-portuguese`, dentro de um projeto: a skill fica disponível só nesse projeto.
+
+Por exemplo, a partir de um clone local:
 
 ```bash
-npx skills add danyuchn/asd-ste100-skill
+git clone /caminho/para/simplified-technical-portuguese ~/.claude/skills/simplified-technical-portuguese
 ```
 
-This pulls the skill from the GitHub repo and installs it for the current project. The CLI sends anonymous install telemetry (skill name and timestamp, no personal or device information) to help rank skills on the skills.sh leaderboard. Set `DISABLE_TELEMETRY=1` to opt out.
+Com um clone, você atualiza a skill com `git pull`.
 
-Update later with `npx skills update`.
+## Uso
 
-### Clone
-
-```bash
-git clone https://github.com/danyuchn/asd-ste100-skill ~/.claude/skills/asd-ste100
-```
-
-This clones the repo into `~/.claude/skills/`, making the skill available in every Claude Code project. Best for contributors and anyone who wants a live checkout that updates with `git pull`.
-
-## Usage
-
-Trigger with a request to simplify or clarify English text:
+Peça para simplificar ou esclarecer um texto em português:
 
 ```
-Disambiguate this tool description
-Rewrite this error message so an agent can't misparse it
-Apply ASD-STE100 to this instruction
+Desambigue esta descrição de ferramenta
+Reescreva esta mensagem de erro para que um agente não interprete errado
+Aplique o português técnico simplificado a esta instrução
+Tire o traduzês deste texto
 ```
 
-Or paste text and ask Claude to "disambiguate this" / "apply STE100 to this" / "reduce ambiguity in this output."
+Ou cole o texto e peça ao Claude para "desambiguar", "simplificar com o STE" ou "reduzir a ambiguidade desta saída".
 
-You get the rewritten text back and nothing else. To see which rules were applied, add "show the diff" or "explain the changes" to the request.
+Você recebe só o texto reescrito. Para ver quais regras a skill aplicou, acrescente "mostre o diff" ou "explique as mudanças" ao pedido.
 
-## Scope
+## Escopo
 
-Built for: agent-to-agent messages, tool/function descriptions, error messages, system prompts, inter-agent instructions — any English text a machine or non-native reader has to parse without a human to ask.
+Feita para: mensagens entre agentes, descrições de ferramentas e funções, mensagens de erro, prompts de sistema e instruções entre agentes. Vale para todo texto em português que uma máquina ou um leitor leigo precisa interpretar sem um humano para consultar.
 
-Not built for: creative writing, marketing copy, or anything where voice and nuance are the point — STE is deliberately flat and literal by design.
+Não serve para: escrita criativa, textos de marketing ou qualquer texto em que a voz e a nuance são o objetivo. O STE é plano e literal de propósito.
 
-One limit worth stating up front: this fixes the form of a text, not its substance. A paragraph with nothing to say comes out short, clean, and still empty.
+Um limite que vale dizer logo: a skill corrige a forma de um texto, não a substância. Um parágrafo sem nada a dizer sai curto, limpo e ainda vazio.
 
-## Sources
+## Fontes
 
-- [ASD-STE100 official site](https://www.asd-ste100.org/)
-- [ASD-STE100 — About STE](https://www.asd-ste100.org/about_STE.html)
-- [ASD Europe — Simplified Technical English](https://www.asd-europe.org/standards-specifications/simplified-technical-english/)
-- [Simplified Technical English — Wikipedia](https://en.wikipedia.org/wiki/Simplified_Technical_English)
-- [TechScribe — ASD-STE100 Simplified Technical English](https://www.techscribe.co.uk/techw/asd-simplified-technical-english.htm)
+- [Site oficial do ASD-STE100](https://www.asd-ste100.org/)
+- [ASD-STE100: About STE](https://www.asd-ste100.org/about_STE.html)
+- [ASD Europe: Simplified Technical English](https://www.asd-europe.org/standards-specifications/simplified-technical-english/)
+- [Simplified Technical English na Wikipedia](https://en.wikipedia.org/wiki/Simplified_Technical_English)
+- [TechScribe: ASD-STE100 Simplified Technical English](https://www.techscribe.co.uk/techw/asd-simplified-technical-english.htm)
+- [Lei nº 15.263, de 14 de novembro de 2025 (Política Nacional de Linguagem Simples)](https://www2.camara.leg.br/legin/fed/lei/2025/lei-15263-14-novembro-2025-798293-publicacaooriginal-177011-pl.html)
+- [ISO 24495-1:2023, Plain language, Part 1](https://www.iso.org/standard/78907.html) (versão brasileira: ABNT NBR ISO 24495-1:2024)
+- [Manual de Comunicação da Secom do Senado Federal: verbete "mesmo"](https://www12.senado.leg.br/manualdecomunicacao/estilos/mesmo)
 
-## License
+## Licença
 
-MIT — see [LICENSE](LICENSE).
+MIT. Veja [LICENSE](LICENSE). O texto da licença fica em inglês, porque a licença MIT exige manter o aviso original sem alterações. Esta adaptação mantém o aviso de copyright do projeto original.

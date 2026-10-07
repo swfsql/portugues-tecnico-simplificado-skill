@@ -49,7 +49,7 @@ O Simplified Technical English Maintenance Group (STEMG) mantém a norma. O down
 
 ## Adaptação ao português
 
-O STE foi escrito para o inglês. Algumas regras passam direto para o português, outras mudam de forma. O português tem também fontes de ambiguidade que o inglês não tem. A tabela mostra como esta skill trata cada caso.
+O STE foi escrito para o inglês. Algumas regras passam direto para o português, outras mudam de forma. A tabela mostra como esta skill trata cada regra do STE.
 
 | Regra do STE | No português | Por quê |
 |---|---|---|
@@ -57,23 +57,16 @@ O STE foi escrito para o inglês. Algumas regras passam direto para o português
 | Verbo, não substantivo (3.7) | Igual, com foco no verbo-suporte: "realizar a análise", "efetuar o pagamento", "proceder à remoção", "fazer uso de". | O verbo-suporte é a forma mais comum de nominalização no português técnico e administrativo. |
 | Sem phrasal verbs (9.3) | Vale para as locuções verbais idiomáticas ("deixar de", "acabar com", "dar conta de", "ficar de") e para a gíria técnica ("subir o servidor", "derrubar o serviço", "dar um push", "bater no endpoint"). | O português não tem a partícula do inglês ("take off"). Mas ele tem verbos com preposição ou com objeto fixo cujo sentido não vem das partes. "O job deixou de rodar" pode ser "parou de rodar" ou "não rodou desta vez". |
 | Palavra mais simples | Sem locuções prolixas: "a fim de", "tendo em vista que", "no que diz respeito a", "sendo que", "encontra-se". | A locução prolixa usa várias palavras no lugar de uma e não acrescenta sentido. |
-| Tempos simples | O pretérito perfeito simples cobre o present perfect. "Tem" + particípio indica repetição, não ação concluída. "Estar" + gerúndio fica nos relatórios de status. O subjuntivo vale em condições e finalidades. Sem gerundismo em ações pontuais. | O pretérito perfeito composto do português tem outro sentido. Traduzir o present perfect por ele muda a afirmação. |
+| Tempos simples | O pretérito perfeito simples cobre o present perfect. "Tem" + particípio indica repetição, não ação concluída. "Estar" + gerúndio fica nos relatórios de status. Sem gerundismo em ações pontuais. | O pretérito perfeito composto do português tem outro sentido. Traduzir o present perfect por ele muda a afirmação. |
 | Formas em "-ing" | Gerúndio em "estar" + gerúndio e em ações simultâneas. Sem gerúndio depois de vírgula para ações em sequência ou para consequências. | A oração reduzida de gerúndio não diz a relação entre as duas ações. |
 | Voz ativa | Igual. A regra inclui a passiva sintética ("Apaga-se o arquivo", "Recomenda-se", "Não se recomenda"). | A partícula "se" também esconde quem age. |
-| Grupos nominais de até 3 palavras | No máximo três "de" seguidos. | O português não empilha substantivos. O equivalente é a cadeia de "de". |
+| Grupos nominais de até 3 palavras | No máximo dois "de" seguidos. | O português não empilha substantivos. O equivalente é a cadeia de "de": "fuel pump valve" é "a válvula da bomba de combustível". |
 | Sem omissões | Igual. O sujeito fica explícito sempre que muda. | O português permite sujeito oculto. Quando o sujeito muda, o leitor não sabe quem age. |
 | Sem ponto e vírgula (8.1) | Igual, inclusive nos itens de lista no estilo jurídico. | A regra não depende do idioma. |
-| Tamanho da frase | Igual: 20 e 25 palavras. | O português costuma usar algumas palavras a mais que o inglês para a mesma ideia (artigos, preposições). A skill mantém os limites do STE. A opção `--max-palavras` ajusta o linter quando um projeto decide outro limite. |
+| Tamanho da frase | 22 palavras em instruções, no lugar de 20. 27 em descrições, no lugar de 25. | No mesmo texto paralelo (FLORES-200), o português do Brasil usa 6,9% mais palavras que o inglês: artigos, preposições. Os limites acompanham a diferença, arredondados para cima: 20 × 1,07 = 21,4 e 25 × 1,07 = 26,75. As opções `--max-palavras` e `--max-palavras-estrito` ajustam o linter quando um projeto decide outros limites. |
 | Instruções de segurança | A condição e o aviso vêm antes da ação, em toda instrução. | Quem age antes de ler o fim da frase não vê a condição. |
-| Sem equivalente no STE | "Ser" para essência, "estar" para estado. | O inglês usa "is" nos dois casos. Em português, "o servidor é indisponível" descreve uma qualidade permanente. Um relatório de status descreve um estado, e o estado pede "estar". |
-| Sem equivalente no STE | "Dever" ambíguo: ordem ou estimativa. | "O job deve terminar em 5 minutos" tem duas leituras. A regra da modalidade proíbe escolher uma delas em silêncio. |
-| Sem equivalente no STE | "Seu" ou "sua" com dois donos possíveis, e "o mesmo" no lugar de pronome. | "Seu" pode se referir a você ou a qualquer terceira pessoa da frase. |
-| Sem equivalente no STE | Tratamento uniforme: "você" e imperativo ("Remova"), sem mistura com "tu" ("Remove") nem com o infinitivo ("Remover"). | "Remove o arquivo" pode ser uma ordem (tu) ou uma descrição ("ele remove o arquivo"). O leitor não sabe qual das duas. |
-| Sem equivalente no STE | Decalques do inglês e falsos cognatos: "eventualmente", "assumir que", "endereçar", "suportar", "uma vez que", "realizar que". | Um leitor que pensa em inglês entende um sentido, e um leitor que pensa em português entende outro. |
-| Sem equivalente no STE | Gênero da norma: masculino genérico ou um nome sem flexão de gênero. Sem "todes", "elu", "todxs" nem "tod@s". | Essas formas estão fora do VOLP e do Acordo Ortográfico. Elas não têm regras de concordância, então o leitor não consegue prever o artigo, o adjetivo e o pronome. O "x" e o "@" também não têm pronúncia. |
-| Sem equivalente no STE | Números sem ponto como separador de milhar: "1000" ou "10 000". | Um leitor treinado em inglês lê "1.000" como 1,0. |
-| Sem equivalente no STE | Datas no formato AAAA-MM-DD (ISO 8601). Sem o ano, o mês abreviado: "07/Out". | "07/10" é 7 de outubro em português e 10 de julho em inglês. |
-| Sem equivalente no STE | Siglas por extenso na primeira ocorrência. | O leitor não tem a quem perguntar o que a sigla quer dizer. |
+
+As regras sem equivalente no STE estão nas tabelas do `SKILL.md`, cada uma com o motivo.
 
 ## Referências de língua
 
@@ -83,27 +76,19 @@ O STE foi escrito para o inglês. Algumas regras passam direto para o português
 
 **Datas: a ISO 8601.** A norma define a data no formato AAAA-MM-DD ("2026-10-07"). A ordem vai da unidade maior para a menor, e nenhum leitor confunde o dia com o mês. Quando o ano não importa, esta skill usa o dia e o mês abreviado ("07/Out"). O nome do mês tira a dúvida.
 
-**Manual de Comunicação da Secom do Senado Federal.** Esta skill usa só um verbete deste manual de estilo. O verbete "mesmo" orienta: "Não use *o mesmo*, *a mesma* para substituir nomes e pronomes." A regra de referência sem ambiguidade segue essa orientação.
+**Manual de Comunicação da Secom do Senado Federal.** Esta skill usa só um verbete deste manual de estilo. O verbete "mesmo" orienta: "Não use *o mesmo*, *a mesma* para substituir nomes e pronomes." A regra de referência sem ambiguidade tem motivo próprio (o leitor precisa procurar o referente) e chega à mesma orientação.
 
 ## Linguagem simples: outro leitor
 
-A Lei nº 15.263, de 14 de novembro de 2025, institui a Política Nacional de Linguagem Simples nos órgãos e entidades da administração pública. Ela vale para os textos da administração dirigidos ao cidadão. A ABNT NBR ISO 24495-1:2024 é a versão brasileira da norma internacional de linguagem simples (ISO 24495-1:2023).
+A Lei nº 15.263, de 14 de novembro de 2025, institui a Política Nacional de Linguagem Simples. Ela vale para os textos da administração pública dirigidos ao cidadão. A ABNT NBR ISO 24495-1:2024 é a versão brasileira da norma internacional de linguagem simples (ISO 24495-1:2023).
 
-Esta skill não tira regras dessas normas, por três motivos:
+Esta skill não tira regras dessas normas. O leitor delas é o cidadão, e o leitor desta skill é um leitor técnico ou uma máquina. Uma lei reflete decisões de política pública. Cada regra desta skill precisa de um motivo de leitura: uma ambiguidade que ela tira.
 
-- **O leitor é outro.** A linguagem simples escreve para o cidadão. Esta skill escreve para leitores técnicos e para máquinas.
-- **O objetivo é outro.** A linguagem simples trata também de leiaute, acessibilidade e testes com o público. Uma linguagem controlada trata de uma só leitura possível para cada frase.
-- **O motivo de cada regra é outro.** Uma lei reflete decisões de política pública. Cada regra desta skill precisa de um motivo de leitura: uma ambiguidade que ela tira.
-
-Algumas técnicas do Art. 5º da lei coincidem com regras do STE. Exemplos: ordem direta, frases curtas, uma ideia por parágrafo, voz ativa e verbos no lugar de substantivos. O inciso XI manda "não usar novas formas de flexão de gênero e de número das palavras da língua portuguesa" contrárias às regras gramaticais, ao VOLP e ao Acordo Ortográfico. Ele coincide com a regra do gênero da norma. Nesses pontos, a lei e esta skill chegam à mesma regra por caminhos diferentes. A skill não depende da lei para nenhuma delas.
-
-A norma ISO diz que vale também para a redação técnica e para o uso de linguagens controladas. Ela se aplica à maioria das línguas escritas, mas dá exemplos só em inglês.
+Algumas técnicas do Art. 5º da lei coincidem com regras do STE. Exemplos: ordem direta, frases curtas, uma ideia por parágrafo, voz ativa e verbos no lugar de substantivos. O inciso XI manda "não usar novas formas de flexão de gênero e de número das palavras da língua portuguesa" contrárias às regras gramaticais, ao VOLP e ao Acordo Ortográfico. Ele coincide com a regra do gênero da norma. Nesses pontos, a lei e esta skill chegam à mesma regra por caminhos diferentes. A norma ISO diz que vale também para a redação técnica e para as linguagens controladas, mas dá exemplos só em inglês.
 
 ## Por que esta skill usa o STE para a saída de agentes
 
 O STE evita a ambiguidade para um leitor que não pode fazer uma pergunta de volta. Esse leitor é um técnico na pista, com um manual na mão e sem um autor para consultar. Um agente de IA que lê a saída de outro agente, a descrição de uma ferramenta ou uma mensagem de sistema está na mesma posição. Ele não tem um canal de volta para resolver uma dúvida. Por exemplo: esta frase na voz passiva quer dizer que quem chama faz X, ou que quem é chamado faz X? As regras que impedem um mecânico de ler errado uma especificação de torque impedem também um agente de ler errado uma instrução.
-
-Em português há um motivo a mais. Os modelos de linguagem aprendem sobretudo com texto em inglês, e o português que eles escrevem traz decalques do inglês. Um decalque pode ter um sentido para quem lê pelo inglês e outro para quem lê pelo português. "Eventualmente" é o caso típico: em português, a palavra quer dizer "às vezes", e quem pensa em "eventually" lê "mais cedo ou mais tarde". Os números e as datas têm o mesmo problema: "1.000" e "07/10" têm uma leitura em português e outra em inglês. As regras próprias do português nesta skill tiram essa leitura dupla.
 
 ## Fontes
 
@@ -114,6 +99,9 @@ Em português há um motivo a mais. Os modelos de linguagem aprendem sobretudo c
 - [Simplified Technical English na Wikipedia](https://en.wikipedia.org/wiki/Simplified_Technical_English)
 - [TechScribe: ASD-STE100 Simplified Technical English](https://www.techscribe.co.uk/techw/asd-simplified-technical-english.htm)
 - [SKYbrary: Simplified Technical English (STE)](https://skybrary.aero/articles/simplified-technical-english-ste)
+
+**Tamanho do português**
+- [FLORES-200: textos paralelos em 200 línguas](https://github.com/facebookresearch/flores/tree/main/flores200)
 
 **Língua, números e datas**
 - [Decreto nº 6.583, de 29 de setembro de 2008 (Acordo Ortográfico)](https://www.planalto.gov.br/ccivil_03/_ato2007-2010/2008/decreto/d6583.htm)

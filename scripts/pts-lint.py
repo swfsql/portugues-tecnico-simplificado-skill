@@ -12,7 +12,7 @@ Uso:
     pts-lint.py --linha-de-base 5 ARQUIVO  # passa se houver 5 violações obrigatórias ou menos
     pts-lint.py --desativar voz-passiva,tempo-composto ARQUIVO
     pts-lint.py --ativar historico ARQUIVO # regras opcionais (veja REGRAS_OPCIONAIS)
-    pts-lint.py --max-palavras 30 ARQUIVO  # limite de palavras por frase (padrão 25)
+    pts-lint.py --max-palavras 30 ARQUIVO  # limite de palavras por frase (padrão 27)
     pts-lint.py --resumo ARQUIVO ...       # contagem por arquivo, pior arquivo primeiro
     pts-lint.py --linguagem rust --partes docs,comentarios,mensagens src/lib.rs
     pts-lint.py --ler-citacoes ARQUIVO     # analisa também o texto entre aspas
@@ -45,7 +45,7 @@ Linguagens de entrada (`--linguagem`, ou pela extensão do arquivo):
     mensagens    literais de string dentro de panic!/assert!/expect/println!/...
     literais     todo literal de string com três palavras ou mais
   Mensagens são texto de erro, então usam o limite estrito
-  (`--max-palavras-estrito`, padrão 20).
+  (`--max-palavras-estrito`, padrão 22).
 
 Regras obrigatórias: ponto-e-virgula, frase-longa, locucao-prolixa,
 verbo-suporte, giria-tecnica, adjetivo-de-marketing, gerundismo (verbo de ação
@@ -56,7 +56,8 @@ diretiva-invalida.
 Regras consultivas: voz-passiva, passiva-sintetica, tempo-composto,
 cadeia-de-preposicoes, o-mesmo, gerundio-encadeado, decalque-do-ingles,
 locucao-verbal, palavra-ambigua, ser-estar, travessao, gerundismo (outros
-verbos) e data-ambigua (dia/mês sem ano). Elas nunca reprovam a execução.
+verbos), data-ambigua (dia/mês sem ano) e numero-ambiguo (três casas depois
+da vírgula). Elas nunca reprovam a execução.
 
 Sai com código 1 quando as violações obrigatórias passam da linha de base
 (padrão 0). Sai com código 2 em erro de uso, inclusive numa opção ou regra
@@ -152,7 +153,7 @@ SUPORTE_FIXO = [
 
 DECALQUES = [
     (r"eventualmente", "'Eventualmente' significa 'às vezes' ou 'por acaso', não 'por fim' (eventually). "
-                       "Use 'às vezes', 'por fim' ou 'mais tarde', conforme o sentido."),
+                       "Use 'às vezes', 'por fim' ou 'em algum momento', conforme o sentido."),
     (r"uma vez que", "'Uma vez que' significa 'já que' (causa). Se o sentido é de tempo (once), "
                      "use 'depois que' ou 'quando'."),
     (r"assum(?:ir|e|em|o|imos|indo|iu|iram|irá|irão|a|am)\s+que",
@@ -168,7 +169,8 @@ DECALQUES = [
     (r"requerimentos?", "Se o sentido é 'requirement', use 'requisito'. 'Requerimento' é um pedido formal."),
     (r"performances?", "Use 'desempenho'."),
     (r"delet(?:ar|a|am|e|em|ou|aram|ará|arão|ado|ada|ados|adas|ando)",
-     "Prefira 'excluir' ou 'apagar', a menos que 'deletar' seja o termo fixo da equipe."),
+     "Use 'apagar' ('excluir' também quer dizer 'deixar de fora'), a menos que 'deletar' seja o termo "
+     "fixo da equipe."),
     (r"set(?:ar|ou|aram|ado|ada|ados|adas|ando|am)", "Use 'definir' ou 'configurar'."),
     (r"start(?:ar|a|am|e|em|ou|aram|ado|ada|ando)", "Use 'iniciar'."),
     (r"print(?:ar|a|am|e|em|ou|aram|ado|ada|ando)",
@@ -231,7 +233,12 @@ PASSIVA_SE = ("recomenda sugere deve pode utiliza usa verifica observa nota cons
               "obtêm fazem").split()
 
 DE = r"(?:de|do|da|dos|das)"
-ELO_DE = DE + r"(?:\s+\w+){1,2}\s+"
+# Quebram a cadeia: coordenação, locuções prepositivas ("cerca de", "antes de"), partitivo ("um dos"),
+# números (datas por extenso) e nomes próprios ("Manual de Comunicação da Secom").
+LOCUCAO_DE = "cerca antes depois além através dentro fora perto longe partir apesar vez acima abaixo".split()
+INICIO_DE = "".join(f"(?<!{word} )" for word in LOCUCAO_DE + ["um", "uma"])
+NAO_ELO = r"(?!(?:e|ou|" + "|".join(LOCUCAO_DE) + r")\b|\d|(?-i:[A-ZÀ-Ý]))"
+ELO_DE = DE + r"(?:\s+" + NAO_ELO + r"\w+){1,2}\s+"
 
 RULES = [
     ("ponto-e-virgula", OBRIGATORIA,
@@ -275,6 +282,10 @@ RULES = [
      re.compile(r"(?<![\w.,/])(?<!nº )(?<!n\.º )(?<!n° )\d{1,3}\.\d{3}(?![\w/]|[.,]\d)"),
      "Ponto como separador de milhar: '1.000' pode ser lido como 1,0. Agrupe com espaço (10 000) ou não "
      "agrupe (1000)."),
+    ("numero-ambiguo", CONSULTIVA,
+     re.compile(r"(?<![\w.,/])\d{1,3},\d{3}(?![\w/]|[.,]\d)"),
+     "Vírgula decimal com três casas: '1,500' pode ser lido como 1500. Mude a unidade (1500 ms) ou, se a "
+     "precisão não importa, corte os zeros (1,5)."),
     ("linguagem-neutra", OBRIGATORIA,
      re.compile(r"\b(?:todes|elus?|delus?|nelus?|aquelus?|daquelus?|menines|amigues|alunes|usuáries|funcionáries"
                 r"|obrigade|querides|bem-vindes|todx|elx|delx|nelx|aquelx|amigx|alunx|meninx|usuárix|funcionárix"
@@ -301,8 +312,8 @@ RULES = [
      "Tempo composto. 'Tem falhado' indica repetição até agora. Para um fato único, use o "
      "pretérito perfeito (falhou). Se a repetição é o ponto, mantenha e sinalize."),
     ("cadeia-de-preposicoes", CONSULTIVA,
-     re.compile(r"\b" + ELO_DE * 3 + DE + r"\s+\w+", re.I),
-     "Cadeia de quatro ou mais 'de' (equivale a um grupo nominal longo). Use um verbo ou divida a "
+     re.compile(r"\b" + INICIO_DE + ELO_DE * 2 + DE + r"\s+\w+", re.I),
+     "Cadeia de três ou mais 'de' (equivale a um grupo nominal de quatro substantivos). Use um verbo ou divida a "
      "informação."),
     ("o-mesmo", CONSULTIVA,
      re.compile(r"\b(?:(?:d|n|pel)(?:o|a|os|as)|ao|aos|à|às|(?:com|para|sobre|em)\s+(?:o|a|os|as))\s+"
@@ -362,11 +373,11 @@ SYNONYM_GROUPS = [
     ("iniciar", "começar"),
     ("parar", "interromper"),
     ("encerrar", "finalizar"),
-    ("mostrar", "exibir", "apresentar"),
+    ("mostrar", "exibir"),
     ("usar", "utilizar", "empregar"),
     ("corrigir", "consertar", "arrumar"),
     ("enviar", "mandar", "transmitir", "remeter"),
-    ("obter", "recuperar", "pegar"),
+    ("obter", "pegar"),
     ("alterar", "modificar", "mudar"),
     ("salvar", "gravar"),
 ]
@@ -398,8 +409,8 @@ NOUN_HOMOGRAPHS = {"uso", "usos", "envio", "envios", "começo", "começos", "con
                    "emprego", "empregos", "empregado", "empregados", "empregada", "empregadas",
                    "cheque", "cheques", "mostra", "mostras"}
 
-MAX_WORDS = 25  # limite para descrições. O de instruções é 20, mas o linter não sabe distinguir.
-MAX_WORDS_STRICT = 20  # mensagens de erro (`mensagens` do rust) são texto do modo Estrito
+MAX_WORDS = 27  # descrições: 25 do STE × 1,07 do português, para cima. O de instruções é 22, mas o linter não sabe distinguir.
+MAX_WORDS_STRICT = 22  # 20 do STE × 1,07, para cima. Mensagens de erro (`mensagens` do rust) são texto do modo Estrito
 
 CODE_FENCE = re.compile(r"^(```|~~~)")
 INLINE_CODE = re.compile(r"(`+)(?!`).*?(?<!`)\1(?!`)")  # N crases fecham N crases (CommonMark)
@@ -1263,7 +1274,7 @@ def selftest():
     findings, _ = lint(("palavra " * 30).strip() + ".")
     assert any(f["regra"] == "frase-longa" for f in findings)
     # A sintaxe de tabela Markdown é leiaute, não prosa. Cada célula continua sendo analisada.
-    short_cell = " ".join(f"termo{number}" for number in range(1, 25)) + "."
+    short_cell = " ".join(f"termo{number}" for number in range(1, 27)) + "."
     for table in (
             "| Rótulo | Detalhe |\n"
             "| --- | --- |\n"
@@ -1273,8 +1284,8 @@ def selftest():
             f"Claro | {short_cell}"):
         findings, words_total = lint(table)
         assert not any(f["regra"] == "frase-longa" for f in findings), findings
-        assert words_total == 27, words_total
-    long_cell = " ".join(f"termo{number}" for number in range(1, 27)) + "."
+        assert words_total == 29, words_total
+    long_cell = " ".join(f"termo{number}" for number in range(1, 29)) + "."
     findings, _ = lint(
         "| Rótulo | Detalhe |\n"
         "| --- | --- |\n"
@@ -1282,7 +1293,7 @@ def selftest():
     )
     long_sentences = [f for f in findings if f["regra"] == "frase-longa"]
     assert len(long_sentences) == 1, long_sentences
-    assert long_sentences[0]["trecho"] == "26 palavras", long_sentences
+    assert long_sentences[0]["trecho"] == "28 palavras", long_sentences
 
     # rotação de sinônimos: o segundo membro é marcado, e o primeiro é o que fica
     findings, _ = lint("Verifique o arquivo de configuração. Depois confira a saída. Confira duas vezes.")
@@ -1300,6 +1311,8 @@ def selftest():
     assert not any(f["regra"] == "rotacao-de-sinonimos" for f in findings), findings
     findings, _ = lint("Pare o job para liberar memória. Interrompa o outro job.")
     assert any(f["regra"] == "rotacao-de-sinonimos" and f["trecho"] == "Interrompa" for f in findings), findings
+    findings, _ = lint("Mostre o log. O servidor apresentou o erro 500. Obtenha o token. Recupere o backup.")
+    assert not any(f["regra"] == "rotacao-de-sinonimos" for f in findings), findings
     findings, _ = lint("Corrija o bug. Depois consertou o valor. Conserte o erro.")
     assert any(f["regra"] == "rotacao-de-sinonimos" and f["trecho"] == "consertou" for f in findings), findings
     findings, _ = lint("Verifique-o. Depois confira-o.")
@@ -1336,6 +1349,11 @@ def selftest():
     assert "o-mesmo" not in _rules_of("Use o mesmo arquivo. O mesmo vale para o cache. O valor é o mesmo.")
     assert "cadeia-de-preposicoes" in _rules_of("Abra a válvula de entrada do conjunto da bomba de combustível.")
     assert "cadeia-de-preposicoes" not in _rules_of("Abra o arquivo de configuração do servidor.")
+    assert "cadeia-de-preposicoes" in _rules_of("Abra o arquivo de configuração do servidor de testes.")
+    assert "cadeia-de-preposicoes" not in _rules_of(
+        "A Lei nº 15.263, de 14 de novembro de 2025. Fora do VOLP e das regras de concordância. "
+        "O dicionário de cerca de 900 palavras do ASD. O Manual de Comunicação da Secom do Senado. "
+        "Copie para uma das pastas de skills do Claude.")
     assert "gerundio-encadeado" in _rules_of("O agente lê o arquivo, gerando um relatório.")
     assert "gerundio-encadeado" not in _rules_of("Clique em OK, quando terminar.")
     assert "decalque-do-ingles" in _rules_of("O backend eventualmente responde.")
@@ -1400,11 +1418,11 @@ def selftest():
     findings, _ = lint(rust, filename="lib.rs", parts={"literais"})
     assert sorted(f["linha"] for f in findings) == [8, 9], findings
     # um comentário de documentação é um parágrafo em várias linhas, e mensagens usam o limite estrito
-    doc = "/// " + " ".join(["palavra"] * 13) + "\n/// " + " ".join(["palavra"] * 13) + ".\nfn f() {}\n"
+    doc = "/// " + " ".join(["palavra"] * 14) + "\n/// " + " ".join(["palavra"] * 14) + ".\nfn f() {}\n"
     findings, _ = lint(doc, filename="a.rs")
-    assert [(f["linha"], f["coluna"], f["trecho"]) for f in findings] == [(1, 5, "26 palavras")], findings
-    msg = "fn f() { assert!(x, \"" + " ".join(["palavra"] * 21) + "\"); }\n"
-    assert [f["trecho"] for f in lint(msg, filename="a.rs", parts={"mensagens"})[0]] == ["21 palavras"]
+    assert [(f["linha"], f["coluna"], f["trecho"]) for f in findings] == [(1, 5, "28 palavras")], findings
+    msg = "fn f() { assert!(x, \"" + " ".join(["palavra"] * 23) + "\"); }\n"
+    assert [f["trecho"] for f in lint(msg, filename="a.rs", parts={"mensagens"})[0]] == ["23 palavras"]
     # uma continuação com barra invertida junta as linhas da string
     cont = "fn f() { panic!(\"primeira metade; \\\n    segunda metade\"); }\n"
     findings, _ = lint(cont, filename="a.rs", parts={"mensagens"})
@@ -1417,10 +1435,10 @@ def selftest():
     findings, _ = lint("Use “a fim de” e «sendo que» só como exemplo.")
     assert findings == [], findings
     # uma citação que termina em ponto fecha a frase
-    long_text = " ".join(["palavra"] * 15)
+    long_text = " ".join(["palavra"] * 25)
     assert "frase-longa" not in _rules_of(f'Ele disse "{long_text}." {long_text.capitalize()}.')
     # uma citação em bloco interrompe o parágrafo anterior
-    quote = " ".join(["palavra"] * 22) + "."
+    quote = " ".join(["palavra"] * 24) + "."
     assert "frase-longa" not in _rules_of(f"**Antes:** um dois três quatro\n> {quote}")
     # "etc." antes de uma maiúscula fecha a frase
     half = " ".join(["palavra"] * 14)
@@ -1465,6 +1483,8 @@ def selftest():
     assert _rules_of("Use 1/3 da memória. O suporte é 24/7.") == []
     assert "data-ambigua" in _rules_of("O prazo é 7/10.")
     assert "numero-ambiguo" in _rules_of("O limite é 1.000 requisições.")
+    assert [f["nivel"] for f in lint("O tempo é 1,500 s.")[0]] == [CONSULTIVA]
+    assert _rules_of("O tempo é 1,5 s. Custa R$ 2,50.") == []
     assert _rules_of("Custa 1.500,00. São 1.000.000 de linhas. Veja a Lei nº 15.263/2025 e a regra 3.7. "
                      "O limite é 10 000.") == []
     # gênero: só as formas da norma

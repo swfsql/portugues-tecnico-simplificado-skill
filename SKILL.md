@@ -1,7 +1,7 @@
 ---
 name: simplified-technical-portuguese
 description: "Use quando um texto em português do Brasil precisa ser interpretado sem um humano para resolver ambiguidades (descrições de ferramentas, mensagens de erro, instruções entre agentes, prompts de sistema, relatórios de status) e uma leitura errada tem custo real, ou quando o texto está denso, cheio de ressalvas ou fácil de interpretar mal. Gatilhos: desambiguar, português técnico simplificado, aplicar o STE100 em português, reescrever para que um agente não interprete errado, tirar o traduzês. In English: Simplified Technical Portuguese, an STE100-style rewrite of Brazilian Portuguese text. Não serve para textos criativos, de marketing ou de linguagem simples para o cidadão."
-version: 0.2.0
+version: 0.3.0
 ---
 
 # Português Técnico Simplificado
@@ -36,11 +36,9 @@ Esta skill segue as **categorias de regras** do ASD-STE100 Issue 9 (janeiro de 2
 
 A skill **não** reproduz o dicionário do ASD. O ASD-STE100 é gratuito, mas a redistribuição não é livre. O Issue 9 (página 2) proíbe a reprodução sem autorização escrita de um dirigente do ASD. A norma libera a reprodução só para oito categorias de organizações, e este projeto não está em nenhuma delas. Além disso, o dicionário é de palavras inglesas e não serve para o português.
 
-Não existe linguagem controlada oficial para o português. Esta skill aplica o *princípio* do STE: a palavra mais simples e comum, usada sempre do mesmo jeito. Ela adapta as regras estruturais à gramática do português. Ela também acrescenta regras para fontes de ambiguidade que o inglês não tem. Exemplos: o "dever" ambíguo, o "seu" com dois donos e o sujeito oculto.
+Esta skill aplica o *princípio* do STE: a palavra mais simples e comum, usada sempre do mesmo jeito. Ela adapta as regras estruturais à gramática do português. Ela também acrescenta regras para fontes de ambiguidade que o inglês não tem. Exemplos: o "dever" ambíguo, o "seu" com dois donos e o sujeito oculto.
 
 A referência de língua é a norma culta. A ortografia e a flexão seguem o Acordo Ortográfico de 1990 e o VOLP, da Academia Brasileira de Letras. Os números seguem o Sistema Internacional de Unidades (SI), e as datas seguem a ISO 8601.
-
-As normas brasileiras de linguagem simples são a Lei nº 15.263/2025 e a ABNT NBR ISO 24495-1. Elas têm outro leitor: o cidadão diante de um texto da administração pública. Esta skill não tira regras delas. A relação entre as duas coisas está em `references/regras-de-redacao.md`.
 
 ## Regras centrais
 
@@ -58,20 +56,20 @@ Aplique as regras estruturais com confiança. Aplique as regras lexicais como um
 | Sem locuções prolixas | "para", "porque", "sobre", "está" | "a fim de", "tendo em vista que", "no que diz respeito a", "encontra-se", "sendo que". Várias palavras no lugar de uma alongam a frase e não acrescentam sentido. |
 | Uma instrução por frase | "Abra o arquivo. Leia a linha 3." | "Abra o arquivo e leia a linha 3, depois confira se ela corresponde." |
 | Condição antes da instrução | "Se o backup terminou, apague o diretório." | "Apague o diretório se o backup terminou." Quem age antes de ler o fim da frase não vê a condição. Um aviso de segurança também vem antes da ação. |
-| Tamanho da frase | Até 20 palavras em instruções e procedimentos, até 25 em descrições | Frases longas com orações coordenadas e subordinadas em cadeia |
+| Tamanho da frase | Até 22 palavras em instruções e procedimentos, até 27 em descrições. O STE usa 20 e 25, e o português usa cerca de 7% mais palavras. | Frases longas com orações coordenadas e subordinadas em cadeia |
 | Sem ponto e vírgula (Regra 8.1) | Divida em frases separadas. | Qualquer ponto e vírgula, inclusive no fim de itens de lista no estilo jurídico ("I - ...; II - ...; e"). A Regra 8.1 permite todos os outros sinais. O travessão não é proibido, mas costuma indicar uma frase que precisa ser dividida. |
-| Ordem direta, sem intercaladas | "O servidor rejeita a requisição se o token expirou." | "O servidor, caso o token, emitido pelo serviço de autenticação, tenha expirado, rejeita a requisição." |
-| Cadeias de "de" | No máximo três "de" seguidos num grupo nominal ("o arquivo de configuração do servidor de testes") | "a válvula de entrada do conjunto da bomba de combustível de alta pressão". O grupo nominal empilhado do inglês vira uma cadeia de "de" em português. |
+| Ordem direta, sem intercaladas | "Se o token expirou, o servidor rejeita a requisição." | "O servidor, caso o token, emitido pelo serviço de autenticação, tenha expirado, rejeita a requisição." |
+| Cadeias de "de" | No máximo dois "de" seguidos num grupo nominal ("a válvula da bomba de combustível") | "a válvula de entrada do conjunto da bomba de combustível de alta pressão". O grupo nominal empilhado do inglês vira uma cadeia de "de" em português. O STE permite três substantivos ("fuel pump valve"), e três substantivos usam dois "de". |
 | Sujeito explícito quando ele muda | "O cliente envia o pedido. O servidor valida o pedido." | "O cliente envia o pedido. Valida o pedido." O português permite sujeito oculto. Quando o sujeito muda, o leitor não sabe quem age. |
 | Sem elipse | "Os pedidos sem nota fiscal foram cancelados." | "Pedidos sem nota cancelados." O estilo telegráfico tira o verbo, e o leitor não sabe se a frase é um relato ou uma ordem. |
 | Referência sem ambiguidade | "O agente enviou ao usuário o token do usuário." / "Antes de apagar o arquivo, copie o arquivo." | "O agente enviou ao usuário seu token." (de quem?) / "Antes de apagar o arquivo, copie o mesmo." ("o mesmo" no lugar de pronome) |
 | "Ser" para essência, "estar" para estado | "O servidor está indisponível." / "O job está rodando." | "O servidor é indisponível." / "O job roda." para dizer o que acontece agora. "Ser" e o presente simples dizem o que a coisa é sempre ou faz por hábito ("O job roda toda noite"). |
 | Preserve a modalidade | "A requisição **pode ter** falhado." continua "pode ter falhado". | Promover uma ressalva a fato ("A requisição falhou.") ou inventar uma certeza que a fonte não deu. Em português, "deve" é ambíguo: ordem ou estimativa. Se a fonte é ambígua, não escolha em silêncio. |
-| Tratamento uniforme | "Você" e imperativo em todo o documento: "Remova", "Clique", "Verifique" | Misturar "Remova" (você) com "Remove" ou "Clica" (tu), ou com instruções no infinitivo ("Remover o painel"), no mesmo documento |
+| Tratamento uniforme | "Você" e imperativo em todo o documento: "Remova", "Clique", "Verifique" | Misturar "Remova" (você) com "Remove" ou "Clica" (tu), ou com instruções no infinitivo ("Remover o painel"), no mesmo documento. "Remove" também é "ele remove", e o leitor não sabe se a frase é uma ordem ou uma descrição. |
 | Gênero da norma | "Os usuários recebem o token." / "A equipe recebe o token." | "Todes", "elu", "todxs", "tod@s". Essas formas estão fora do VOLP e das regras de concordância, e o leitor não consegue prever o artigo, o adjetivo e o pronome. As formas duplas ("os usuários e as usuárias", "usuário(a)") são corretas, mas alongam a frase. |
-| Números | "1000 requisições", "10 000 requisições", "1,5 s" | "1.000 requisições". Um leitor treinado em inglês lê "1.000" como 1,0. O SI agrupa os dígitos com espaço, nunca com ponto. Num valor que um programa vai ler, use o formato do programa num trecho de código (`1.5`). |
+| Números | "1000 requisições", "10 000 requisições", "1,5 s" | "1.000 requisições". Um leitor treinado em inglês lê "1.000" como 1,0. O SI agrupa os dígitos com espaço, nunca com ponto. Esse leitor também lê "1,500 s" como 1500 s: mude a unidade ("1500 ms"). Num valor que um programa vai ler, use o formato do programa num trecho de código (`1.5`). |
 | Datas | "2026-10-07" (ISO 8601). Sem o ano: "07/Out". | "07/10/2026" ou "07/10". Um leitor treinado em inglês lê mês/dia, e "07/10" vira 10 de julho. |
-| Siglas | O nome por extenso na primeira ocorrência: "tempo de vida (TTL)" | Uma sigla que o texto nunca define |
+| Siglas | O nome por extenso na primeira ocorrência: "tempo de vida (TTL)" | Uma sigla que o texto nunca define. O leitor não tem a quem perguntar o que ela quer dizer. |
 | Limites de parágrafo | Um tópico por parágrafo, até 6 frases | Parágrafos com vários tópicos |
 | Listas para sequências | Uma lista numerada ou com marcadores para 3 ou mais passos ou condições | Uma sequência escondida numa frase só |
 
@@ -80,7 +78,7 @@ Aplique as regras estruturais com confiança. Aplique as regras lexicais como um
 | Regra | Faça | Não faça | Por que a regra é mais fraca aqui |
 |---|---|---|---|
 | Uma palavra, um significado | Escolha um verbo para uma ação e use-o sempre. Por exemplo, sempre "verifique", sem alternar "verifique", "confira", "cheque" e "valide" para a mesma ação. Evite também as palavras com dois sentidos no mesmo contexto. | Alternar sinônimos para a mesma ideia ao longo do documento. Escrever "exclua o arquivo do pacote", que pode ser apagar o arquivo ou deixar o arquivo de fora. Escreva "apague" ou "não inclua". | A consistência dentro do documento é verificável. Qual palavra é a *aprovada* não é, porque não existe dicionário aprovado para o português. |
-| Uma classe gramatical por palavra | "Grave o evento no log." (log = substantivo) | "Logue o evento." (log virou verbo, e "logar" também quer dizer "entrar no sistema") | Sem dicionário, não há lista das palavras que são só substantivo. Prefira a forma substantiva quando as duas se leem bem. Não declare conformidade. |
+| Uma classe gramatical por palavra | "Registre o evento no log." (log = substantivo) | "Logue o evento." (log virou verbo, e "logar" também quer dizer "entrar no sistema") | Sem dicionário, não há lista das palavras que são só substantivo. Prefira a forma substantiva quando as duas se leem bem. Não declare conformidade. |
 | Termos de domínio | Mantenha os termos técnicos necessários e defina cada um uma vez se ele não for comum. O STE permite um glossário próprio do projeto além do dicionário-base. | Jargão que o texto nunca define | A permissão de glossário existe no STE, mas o dicionário-base que ela estende não existe em português. |
 | Estrangeirismos e falsos cognatos | Use a palavra portuguesa consolidada: "apagar", "definir", "desempenho", "obrigatório". Mantenha empréstimos técnicos consolidados (commit, deploy, log, backup) e defina-os se o leitor puder não conhecê-los. | "Deletar", "setar", "performance", "performar", "mandatório". Falsos cognatos: "eventualmente" (= às vezes, não "por fim"), "assumir que" (= supor), "endereçar o problema" (= tratar), "suportar JSON" (= aceitar), "realizar que" (= perceber). | O limite entre empréstimo consolidado e anglicismo evitável varia por equipe. O glossário do projeto decide. |
 
@@ -88,15 +86,14 @@ Aplique as regras estruturais com confiança. Aplique as regras lexicais como um
 
 O STE permite infinitivo, imperativo, presente simples, passado simples, futuro simples e particípio passado usado como adjetivo. A norma não permite o present perfect nem as outras formas compostas.
 
-Em português, a regra muda em cinco pontos:
+Em português, a regra muda em quatro pontos:
 
 1. **O pretérito perfeito simples já cobre o present perfect do inglês.** "The job has completed" é "O job terminou" (ou "já terminou"). Não traduza por "O job tem terminado". Em português, "tem" + particípio indica repetição ou continuidade até agora: "o build tem falhado desde segunda" quer dizer que ele falhou várias vezes. Use o tempo composto só quando a repetição é o ponto, e sinalize.
-2. **Um estado atual pede "estar".** O presente simples diz o que acontece por hábito ou o que a coisa consegue fazer: "O job roda toda noite." Para o que acontece agora, use "estar" + gerúndio ("O job está rodando") ou "estar" + adjetivo ("O servidor está indisponível"). Mantenha essas formas em relatórios de status. Elas dizem o que acontece agora, e a forma simples não diz.
-3. **Subjuntivo em condições e finalidades.** "Para que" e "caso" pedem o subjuntivo: "para que o job termine", "caso o arquivo exista". Depois de "se", prefira o futuro do subjuntivo para uma condição futura: "se o arquivo existir". O indicativo também é correto depois de "se" quando a condição é um fato que o leitor pode verificar: "se o token expirou". Em instruções, evite hipóteses no imperfeito do subjuntivo ("se o arquivo existisse").
-4. **Futuro.** Descreva o comportamento de um sistema no presente: "A ferramenta apaga o arquivo." Quando o tempo importa, use o futuro simples ("apagará") ou "vai" + infinitivo ("vai apagar"). Use uma só dessas formas no documento. Não use gerundismo para uma ação pontual ("vamos estar enviando"). Uma ação que dura um período pode ficar: "o backup vai estar rodando durante a janela".
-5. **Gerúndio.** Fora de "estar" + gerúndio, use o gerúndio só para ações simultâneas. Considere "O agente lê o arquivo, gerando um relatório". A oração com gerúndio não diz se a segunda ação é simultânea, posterior ou consequência da primeira. Escreva duas frases. "Incluindo" e "dependendo de" funcionam como preposições e podem ficar.
+2. **"Estar" + gerúndio fica.** O STE não permite a forma em "-ing" como verbo. Em português, "o job está rodando" diz o que acontece agora, e "o job roda" diz o que acontece por hábito. Mantenha "estar" + gerúndio em relatórios de status (veja a regra de "ser" e "estar").
+3. **Futuro.** Descreva o comportamento de um sistema no presente: "A ferramenta apaga o arquivo." Quando o tempo importa, use o futuro simples ("apagará") ou "vai" + infinitivo ("vai apagar"). Use uma só dessas formas no documento. Não use gerundismo para uma ação pontual ("vamos estar enviando"). Uma ação que dura um período pode ficar: "o backup vai estar rodando durante a janela".
+4. **Gerúndio.** Fora de "estar" + gerúndio, use o gerúndio só para ações simultâneas. Considere "O agente lê o arquivo, gerando um relatório". A oração com gerúndio não diz se a segunda ação é simultânea, posterior ou consequência da primeira. Escreva duas frases. "Incluindo" e "dependendo de" funcionam como preposições e podem ficar.
 
-Evite também o mais-que-perfeito simples ("falhara"), que soa arcaico, e a mesóclise ("far-se-á"). Use o mais-que-perfeito composto ("tinha falhado") só quando a ordem dos eventos importa.
+Evite também o mais-que-perfeito simples ("falhara"). Ele difere do futuro ("falhará") só pelo acento. Use o mais-que-perfeito composto ("tinha falhado") só quando a ordem dos eventos importa.
 
 **A modalidade é a exceção.** As formas compostas com verbo modal carregam a ressalva. Exemplos: "pode ter falhado", "deve ter travado", "talvez tenha falhado" e "teria falhado". No jornalismo, "teria falhado" quer dizer "supostamente falhou". Mantenha essas formas. Quando a regra dos tempos e a regra da modalidade entram em conflito, a modalidade vence.
 
@@ -139,7 +136,7 @@ O único acréscimo permitido: se o passo 4 manteve uma forma longa de propósit
 | Regra violada | Original | Simplificado |
 |---|---|---|
 | Tempo composto (decalque do present perfect) | "Temos recebido a sua solicitação." | "Recebemos a sua solicitação." |
-| Cadeia de "de" (4 ou mais) | "o módulo de controle de prioridade da fila de tarefas do agente" | "o módulo que controla a prioridade da fila de tarefas do agente" |
+| Cadeia de "de" (3 ou mais) | "o módulo de controle de prioridade da fila de tarefas do agente" | "o módulo que define a prioridade na fila de tarefas do agente" |
 
 Modo: Estrito. 7 violações encontradas.
 ```
@@ -150,7 +147,7 @@ Depois da tabela, escreva uma linha sobre o que você **não** simplificou de pr
 
 Quando o texto está num repositório (comentários, docstrings, READMEs, textos de ajuda), edite os arquivos no lugar. Não imprima o texto. Aplique também estas regras:
 
-- **Modo pelo tipo de texto.** Comentários, docstrings e documentos Markdown usam o modo Flexível. Mensagens de erro, de panic e de log usam o modo Estrito. O texto de ajuda da linha de comando também usa o modo Estrito.
+- **Modo pelo tipo de texto.** Comentários, docstrings e documentos Markdown usam o modo Flexível. Mensagens de erro, de panic e de log usam o modo Estrito. A ajuda da linha de comando também usa o modo Estrito.
 - **Mexa só na prosa.** Não mude código, identificadores, trechos de código, destinos de links nem textos de títulos (os títulos são âncoras de links). Mantenha a largura de linha do arquivo. Identificadores e nomes de opções em inglês continuam em inglês.
 - **Procure nos testes antes de mudar uma mensagem.** Os testes muitas vezes comparam parte de uma string de erro (`should_panic(expected = …)`, `assert!(msg.contains(…))`, arquivos de snapshot). Mantenha cada trecho comparado.
 - **Atualize todas as cópias.** Um texto de ajuda ou um parágrafo de documentação pode ter uma cópia idêntica em outro arquivo. Mude todas as cópias juntas.

@@ -27,7 +27,7 @@ O Brasil tem normas de linguagem simples (a Lei nº 15.263/2025 e a ABNT NBR ISO
 | Antes | Depois |
 |---|---|
 | "Esta ferramenta irá tentar realizar a sincronização do estado entre os diversos backends que foram configurados, e caso um conflito seja detectado ela poderá resolvê-lo automaticamente dependendo da estratégia que tiver sido definida, ou caso contrário irá apresentar o conflito para revisão manual." | "A ferramenta tenta sincronizar o estado entre os backends configurados. Se encontrar um conflito, a ferramenta lê a estratégia configurada. Se a estratégia permitir resolução automática, a ferramenta pode resolver o conflito automaticamente. Se a ferramenta não resolver o conflito, ela encaminha o conflito para revisão manual." |
-| "Um erro pode ter ocorrido durante o processamento da sua requisição devido a uma possível incompatibilidade no formato de dados esperado, o que poderia ser causado por uma versão desatualizada do cliente." | "Sua requisição pode ter falhado. A causa pode ser um formato de dados diferente do formato que o servidor espera. Uma versão desatualizada do cliente pode causar essa diferença. Verifique a versão do cliente." |
+| "Um erro pode ter ocorrido durante o processamento da sua requisição devido a uma possível incompatibilidade no formato de dados esperado, o que poderia ser causado por uma versão desatualizada do cliente." | "Sua requisição pode ter falhado. A causa pode ser um formato de dados diferente do formato que o servidor espera. Uma versão desatualizada do cliente pode causar essa diferença." |
 
 Há mais exemplos em [`examples/antes-depois.md`](examples/antes-depois.md), inclusive ilustrações das regras do STE e das regras que só o português tem.
 
@@ -50,7 +50,7 @@ As regras estruturais que a skill verifica são mecânicas: você aponta a palav
 O linter verifica:
 
 - **Achados obrigatórios** reprovam a execução. São eles: ponto e vírgula, frase longa, locução prolixa, verbo-suporte, gíria técnica e adjetivo de marketing. Também: gerundismo com verbo de ação pontual, data no formato dia/mês/ano, número com ponto de milhar e forma de gênero fora da norma. Por fim: a rotação de sinônimos (com as conjugações dos verbos) e a conjunção pendente no fim de item de lista.
-- **Achados consultivos** nunca reprovam a execução. São eles: voz passiva, partícula "se", tempo composto, cadeia de "de", "o mesmo" como pronome, gerúndio depois de vírgula, decalque do inglês e travessão. Também: locução verbal idiomática, "excluir", "ser" no lugar de "estar", outros casos de gerundismo e data sem o ano.
+- **Achados consultivos** nunca reprovam a execução. São eles: voz passiva, partícula "se", tempo composto, cadeia de "de", "o mesmo" como pronome, gerúndio depois de vírgula, decalque do inglês e travessão. Também: locução verbal idiomática, "excluir", "ser" no lugar de "estar", outros casos de gerundismo e data sem o ano. Por fim: número com três casas depois da vírgula.
 
 O linter nunca marca ressalvas nem modalidade. "Pode ter falhado", "talvez tenha falhado" e "teria falhado" passam limpos, e o autoteste comprova isso. O linter também não verifica a ordem direta, o sujeito oculto, o "seu" ambíguo, o "dever" ambíguo nem a mistura de "tu" e "você". Essas regras precisam de leitura humana ou de um modelo.
 
@@ -72,12 +72,12 @@ Em arquivos Rust (`*.rs`, ou `--linguagem rust`), o linter lê só a prosa, nunc
 
 - `docs`: `///`, `//!`, `/** */` e `/*! */`, lidos como Markdown.
 - `comentarios`: `//` e `/* */`.
-- `mensagens`: literais de string dentro de `panic!`, `assert!`, `expect`, `println!` e chamadas parecidas. Mensagens são texto de erro, então usam o limite estrito de 20 palavras (`--max-palavras-estrito`).
+- `mensagens`: literais de string dentro de `panic!`, `assert!`, `expect`, `println!` e chamadas parecidas. Mensagens são texto de erro, então usam o limite estrito de 22 palavras (`--max-palavras-estrito`).
 - `literais`: todo literal de string com três palavras ou mais.
 
 Outras opções:
 
-- `--max-palavras N` define o limite de palavras por frase (padrão 25).
+- `--max-palavras N` define o limite de palavras por frase (padrão 27).
 - `--resumo` imprime uma linha por arquivo, com o pior arquivo primeiro.
 - `--ativar historico` acrescenta uma regra opcional que marca frases de changelog ("não mais", "anteriormente", "atualmente") em documentação do estado atual.
 - `--linha-de-base N` tolera N violações obrigatórias.
@@ -86,7 +86,7 @@ Outras opções:
 
 Uma opção desconhecida ou um nome de regra desconhecido em `--desativar` ou `--ativar` é erro (código 2). Um nome de opção do ste-lint, como `--baseline`, recebe a indicação do nome em português.
 
-A regra de conjunção pendente verifica marcadores de lista no começo da linha, com zero a três espaços antes e espaços ASCII depois do marcador. Ela aceita os marcadores `-`, `*` e `+`, e marcadores numéricos que terminam em `.` ou `)`, como `1.` ou `1)`. Ela verifica as linhas de continuação recuadas até a última linha com conteúdo. Ela não interpreta listas dentro de citações, continuação preguiçosa (lazy continuation) nem a semântica completa de listas aninhadas. Uma linha isolada com quatro ou mais espaços antes não conta como marcador de lista. Dentro de um item de lista, o recuo até a coluna do conteúdo conta como texto de continuação. A detecção de blocos de código segue uma regra simples. Uma linha que começa com três crases ou três tils abre ou fecha o bloco.
+A regra de conjunção pendente lê os marcadores de lista comuns (`-`, `*`, `+`, `1.` e `1)`) com até três espaços antes. Ela não interpreta listas dentro de citações, continuação preguiçosa (lazy continuation) nem a semântica completa de listas aninhadas.
 
 O arquivo `examples/casos-limite-do-linter.md` é inválido de propósito e mostra itens de lista incompletos. Rode `python scripts/pts-lint.py examples/casos-limite-do-linter.md` e veja que o linter informa os dois achados esperados. O arquivo é um caso de teste e não serve de exemplo de prosa conforme.
 

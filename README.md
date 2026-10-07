@@ -14,11 +14,13 @@ Um agente que interpreta a saída de outro agente está numa posição muito par
 
 ## Por que uma versão em português
 
-Não existe norma de linguagem controlada para o português. O STE é só para o inglês, e uma tradução direta das regras não funciona. O português não tem phrasal verbs, mas tem verbo-suporte e locuções prolixas. O pretérito perfeito composto ("tem falhado") tem outro sentido que o present perfect do inglês. O português tem também fontes de ambiguidade que o inglês não tem. Exemplos: o "dever" (ordem ou estimativa?), o "seu" com dois donos possíveis e o sujeito oculto.
+Não existe norma de linguagem controlada para o português. O STE é só para o inglês, e uma tradução direta das regras não funciona. O português não tem a partícula dos phrasal verbs ("take off"). Mas ele tem locuções verbais cujo sentido não vem das partes ("deixar de", "acabar com") e uma gíria técnica com o mesmo problema ("subir o servidor", "dar um push"). O pretérito perfeito composto ("tem falhado") tem outro sentido que o present perfect do inglês. O português separa também a essência ("ser") do estado ("estar"), e o inglês não separa.
 
-Há ainda o traduzês. Os modelos de linguagem aprendem sobretudo com texto em inglês. O português que eles escrevem traz decalques: "eventualmente" no sentido de "por fim", "endereçar o problema", "suportar o formato". Outros sinais do traduzês são o gerundismo e "o mesmo" no lugar de pronome. Esta skill trata esses casos como regras próprias.
+O português tem ainda fontes de ambiguidade que o inglês não tem. Exemplos: o "dever" (ordem ou estimativa?), o "seu" com dois donos possíveis, o sujeito oculto e o "excluir" (apagar ou deixar de fora?). Os números e as datas também mudam de leitura entre as duas línguas: "1.000" e "07/10".
 
-A Lei nº 15.263/2025 (Política Nacional de Linguagem Simples) pede ordem direta, frases curtas, voz ativa e verbos no lugar de substantivos. São regras do STE. A ABNT NBR ISO 24495-1:2024 é a norma brasileira de linguagem simples.
+Há também o traduzês. Os modelos de linguagem aprendem sobretudo com texto em inglês. O português que eles escrevem traz decalques: "eventualmente" no sentido de "por fim", "endereçar o problema", "suportar o formato". Outros sinais do traduzês são o gerundismo e "o mesmo" no lugar de pronome. Esta skill trata esses casos como regras próprias.
+
+O Brasil tem normas de linguagem simples (a Lei nº 15.263/2025 e a ABNT NBR ISO 24495-1). Elas escrevem para o cidadão diante de um texto da administração pública. Esta skill escreve para leitores técnicos e para máquinas e não tira regras dessas normas. A referência de língua é a norma culta: o Acordo Ortográfico e o VOLP.
 
 ## Antes e depois
 
@@ -33,7 +35,7 @@ Há mais exemplos em [`examples/antes-depois.md`](examples/antes-depois.md), inc
 
 1. Escolhe um modo. O modo **Estrito** cobre procedimentos, mensagens de erro e descrições de ferramentas. O modo **Flexível** cobre READMEs, descrições de pull request e prosa explicativa. O modo Flexível mantém a disciplina da frase, mas não o vocabulário fixo.
 2. Lê o texto de entrada pelo sentido.
-3. Marca cada violação, frase por frase. Exemplos: escolha ambígua de palavras, tempo composto, voz passiva com quem age indefinido, várias instruções numa frase, cadeias de "de", palavras omitidas, frases longas. Outros: verbo-suporte, locuções prolixas, ponto e vírgula, ressalvas empilhadas, adjetivos de marketing, gerundismo e decalques do inglês.
+3. Marca cada violação, frase por frase. Exemplos: escolha ambígua de palavras, tempo composto, voz passiva com quem age indefinido, várias instruções numa frase, cadeias de "de", palavras omitidas, frases longas. Outros: verbo-suporte, gíria técnica, locuções verbais e prolixas, ponto e vírgula, ressalvas empilhadas, adjetivos de marketing, gerundismo e decalques do inglês. Por fim: "ser" no lugar de "estar", números e datas ambíguos e formas de gênero fora da norma.
 4. Reescreve cada frase marcada, sem perder nenhum fato, condição ou limite de escopo do original. Se uma forma mais curta perderia uma precisão necessária, a skill mantém a forma longa e sinaliza a troca. Ela não simplifica em silêncio.
 5. Entrega só o texto reescrito: sem preâmbulo, sem anúncio de modo, sem resumo das mudanças. Quando ela deixa algo sem simplificar de propósito, acrescenta uma linha `Mantido como está:`.
 
@@ -47,12 +49,24 @@ As regras estruturais que a skill verifica são mecânicas: você aponta a palav
 
 O linter verifica:
 
-- **Achados obrigatórios** reprovam a execução. São eles: ponto e vírgula, frase longa, locução prolixa, verbo-suporte, adjetivo de marketing e gerundismo. Também a rotação de sinônimos (com as conjugações dos verbos) e a conjunção pendente no fim de item de lista.
-- **Achados consultivos** nunca reprovam a execução. São eles: voz passiva, partícula "se", tempo composto, cadeia de "de", "o mesmo" como pronome, gerúndio depois de vírgula, decalque do inglês e travessão.
+- **Achados obrigatórios** reprovam a execução. São eles: ponto e vírgula, frase longa, locução prolixa, verbo-suporte, gíria técnica e adjetivo de marketing. Também: gerundismo com verbo de ação pontual, data no formato dia/mês/ano, número com ponto de milhar e forma de gênero fora da norma. Por fim: a rotação de sinônimos (com as conjugações dos verbos) e a conjunção pendente no fim de item de lista.
+- **Achados consultivos** nunca reprovam a execução. São eles: voz passiva, partícula "se", tempo composto, cadeia de "de", "o mesmo" como pronome, gerúndio depois de vírgula, decalque do inglês e travessão. Também: locução verbal idiomática, "excluir", "ser" no lugar de "estar", outros casos de gerundismo e data sem o ano.
 
 O linter nunca marca ressalvas nem modalidade. "Pode ter falhado", "talvez tenha falhado" e "teria falhado" passam limpos, e o autoteste comprova isso. O linter também não verifica a ordem direta, o sujeito oculto, o "seu" ambíguo, o "dever" ambíguo nem a mistura de "tu" e "você". Essas regras precisam de leitura humana ou de um modelo.
 
 O linter lê Markdown por parágrafo. Uma frase quebrada em várias linhas conta como uma frase, e o achado aponta para a primeira palavra dela. O linter ignora blocos de código, blocos de fórmula `$$`, comentários HTML, definições de link e front matter YAML. Código e fórmulas inline contam como uma palavra cada, e os destinos de link não contam. As colunas ficam exatas.
+
+Um trecho entre aspas ("...", “...” ou «...») é uma menção: um exemplo, um rótulo ou uma citação. O linter conta o trecho como uma palavra e não analisa o conteúdo dele. `--ler-citacoes` desliga esse comportamento, por exemplo para analisar as mensagens de erro citadas num README.
+
+Um exemplo que precisa falhar fica entre duas diretivas:
+
+```markdown
+<!-- pts-lint: deve-falhar frase-longa ponto-e-virgula -->
+> Um texto ruim de propósito; com várias violações.
+<!-- pts-lint: fim -->
+```
+
+Os achados dentro da região são esperados e saem do relatório. A região falha (`exemplo-sem-falha`) se não tiver um achado obrigatório ou se faltar uma das regras listadas. A lista de regras é opcional. Os blocos "Antes" de `examples/antes-depois.md` usam essas diretivas.
 
 Em arquivos Rust (`*.rs`, ou `--linguagem rust`), o linter lê só a prosa, nunca o código. `--partes` escolhe a prosa (padrão `docs,comentarios`):
 
@@ -67,9 +81,10 @@ Outras opções:
 - `--resumo` imprime uma linha por arquivo, com o pior arquivo primeiro.
 - `--ativar historico` acrescenta uma regra opcional que marca frases de changelog ("não mais", "anteriormente", "atualmente") em documentação do estado atual.
 - `--linha-de-base N` tolera N violações obrigatórias.
-- `--ajuda` mostra o uso completo, e `--autoteste` roda os testes internos.
+- `--ajuda` mostra o uso completo.
+- `--autoteste` roda os testes internos e analisa os documentos desta skill. Os documentos precisam passar, e o arquivo de casos-limite precisa falhar.
 
-Um nome de regra desconhecido em `--desativar` ou `--ativar` é erro.
+Uma opção desconhecida ou um nome de regra desconhecido em `--desativar` ou `--ativar` é erro (código 2). Um nome de opção do ste-lint, como `--baseline`, recebe a indicação do nome em português.
 
 A regra de conjunção pendente verifica marcadores de lista no começo da linha, com zero a três espaços antes e espaços ASCII depois do marcador. Ela aceita os marcadores `-`, `*` e `+`, e marcadores numéricos que terminam em `.` ou `)`, como `1.` ou `1)`. Ela verifica as linhas de continuação recuadas até a última linha com conteúdo. Ela não interpreta listas dentro de citações, continuação preguiçosa (lazy continuation) nem a semântica completa de listas aninhadas. Uma linha isolada com quatro ou mais espaços antes não conta como marcador de lista. Dentro de um item de lista, o recuo até a coluna do conteúdo conta como texto de continuação. A detecção de blocos de código segue uma regra simples. Uma linha que começa com três crases ou três tils abre ou fecha o bloco.
 
@@ -111,7 +126,7 @@ Você recebe só o texto reescrito. Para ver quais regras a skill aplicou, acres
 
 ## Escopo
 
-Feita para: mensagens entre agentes, descrições de ferramentas e funções, mensagens de erro, prompts de sistema e instruções entre agentes. Vale para todo texto em português que uma máquina ou um leitor leigo precisa interpretar sem um humano para consultar.
+Feita para: mensagens entre agentes, descrições de ferramentas e funções, mensagens de erro, prompts de sistema e instruções entre agentes. Vale para todo texto em português que uma máquina ou um leitor estrangeiro precisa interpretar sem um humano para consultar.
 
 Não serve para: escrita criativa, textos de marketing ou qualquer texto em que a voz e a nuance são o objetivo. O STE é plano e literal de propósito.
 
@@ -124,10 +139,9 @@ Um limite que vale dizer logo: a skill corrige a forma de um texto, não a subst
 - [ASD Europe: Simplified Technical English](https://www.asd-europe.org/standards-specifications/simplified-technical-english/)
 - [Simplified Technical English na Wikipedia](https://en.wikipedia.org/wiki/Simplified_Technical_English)
 - [TechScribe: ASD-STE100 Simplified Technical English](https://www.techscribe.co.uk/techw/asd-simplified-technical-english.htm)
-- [Lei nº 15.263, de 14 de novembro de 2025 (Política Nacional de Linguagem Simples)](https://www2.camara.leg.br/legin/fed/lei/2025/lei-15263-14-novembro-2025-798293-publicacaooriginal-177011-pl.html)
-- [ISO 24495-1:2023, Plain language, Part 1](https://www.iso.org/standard/78907.html) (versão brasileira: ABNT NBR ISO 24495-1:2024)
-- [Manual de Comunicação da Secom do Senado Federal: verbete "mesmo"](https://www12.senado.leg.br/manualdecomunicacao/estilos/mesmo)
+
+As fontes de língua, números e datas (Acordo Ortográfico, VOLP, SI, ISO 8601) e a relação com as normas de linguagem simples estão em [`references/regras-de-redacao.md`](references/regras-de-redacao.md).
 
 ## Licença
 
-MIT. Veja [LICENSE](LICENSE). O texto da licença fica em inglês, porque a licença MIT exige manter o aviso original sem alterações. Esta adaptação mantém o aviso de copyright do projeto original.
+MIT. Veja [LICENSE](LICENSE). O texto da licença fica em inglês, porque a licença MIT exige manter o aviso original sem alterações. O aviso de copyright do projeto original fica, e a adaptação acrescenta uma linha própria.

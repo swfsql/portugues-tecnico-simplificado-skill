@@ -15,7 +15,8 @@ Uso:
     pts-lint.py --max-palavras 30 ARQUIVO  # limite de palavras por frase (padrão 25)
     pts-lint.py --resumo ARQUIVO ...       # contagem por arquivo, pior arquivo primeiro
     pts-lint.py --linguagem rust --partes docs,comentarios,mensagens src/lib.rs
-    pts-lint.py --autoteste
+    pts-lint.py --ler-citacoes ARQUIVO     # analisa também o texto entre aspas
+    pts-lint.py --autoteste                # testes internos e documentos da skill
     pts-lint.py --ajuda
 
 Linguagens de entrada (`--linguagem`, ou pela extensão do arquivo):
@@ -25,6 +26,18 @@ Linguagens de entrada (`--linguagem`, ou pela extensão do arquivo):
   Blocos de código, fórmulas em bloco, comentários HTML, definições de link e
   front matter YAML ficam de fora. Código e fórmulas inline contam como uma
   palavra cada. Destinos de link não contam.
+
+  Um trecho entre aspas ("...", “...” ou «...») é uma menção: um exemplo, um
+  rótulo ou uma citação. Ele conta como uma palavra e não é analisado.
+  `--ler-citacoes` desliga esse comportamento.
+
+  Um exemplo que precisa falhar fica entre duas diretivas:
+    <!-- pts-lint: deve-falhar frase-longa verbo-suporte -->
+    ...
+    <!-- pts-lint: fim -->
+  Os achados dentro da região são esperados e saem do relatório. A região
+  falha (exemplo-sem-falha) se não tiver um achado obrigatório ou se faltar
+  uma das regras listadas. A lista é opcional.
 - rust (`*.rs`): só a prosa é lida, nunca o código. `--partes` escolhe as
   partes (padrão `docs,comentarios`):
     docs         `///`, `//!`, `/** */`, `/*! */` (lidos como Markdown, como no rustdoc)
@@ -34,13 +47,24 @@ Linguagens de entrada (`--linguagem`, ou pela extensão do arquivo):
   Mensagens são texto de erro, então usam o limite estrito
   (`--max-palavras-estrito`, padrão 20).
 
+Regras obrigatórias: ponto-e-virgula, frase-longa, locucao-prolixa,
+verbo-suporte, giria-tecnica, adjetivo-de-marketing, gerundismo (verbo de ação
+pontual), data-ambigua (dia/mês/ano), numero-ambiguo, linguagem-neutra,
+rotacao-de-sinonimos, conjuncao-pendente, exemplo-sem-falha e
+diretiva-invalida.
+
+Regras consultivas: voz-passiva, passiva-sintetica, tempo-composto,
+cadeia-de-preposicoes, o-mesmo, gerundio-encadeado, decalque-do-ingles,
+locucao-verbal, palavra-ambigua, ser-estar, travessao, gerundismo (outros
+verbos) e data-ambigua (dia/mês sem ano). Elas nunca reprovam a execução.
+
 Sai com código 1 quando as violações obrigatórias passam da linha de base
-(padrão 0). Achados consultivos (voz passiva, partícula "se", tempos
-compostos, cadeias de "de", "o mesmo", gerúndio encadeado, decalques do
-inglês, travessão) nunca reprovam a execução. Sai com código 2 em erro de uso.
+(padrão 0). Sai com código 2 em erro de uso, inclusive numa opção ou regra
+desconhecida.
 """
 import bisect
 import json
+import os
 import re
 import sys
 
@@ -74,6 +98,20 @@ PARTICIPIO = (r"(?![\w]*[áàâãéêíóôõú]\w*(?:ad|id)[oa]s?\b)"
               r"|impress|eleit|suspens|pres|solt|extint|express|aces)[oa]s?|entregues?)")
 NAO_PARTICIPIO = (r"(?!(?:cada|nada|vida|lado|dados|resultados?|estados?|significados?|sentidos?|cuidados?"
                   r"|pedidos?|chamados?|legados?|mercados?|partidos?|ruídos?)\b)")
+# Objetos que a gíria técnica costuma acompanhar ("subir o servidor").
+OBJETO_TECNICO = (r"(?:servidor(?:es)?|serviços?|containers?|contêiner(?:es)?|ambientes?|aplicaç(?:ão|ões)|apps?"
+                  r"|código|branch(?:es)?|prs?|versão|build|pods?|cluster|banco|api|arquivos?|imagens?|imagem"
+                  r"|deploy|sistemas?|máquinas?|instâncias?|processos?|jobs?)")
+# Verbos de ação pontual: "vou estar enviando" é gerundismo, "vai estar rodando durante a
+# janela" é um futuro durativo legítimo.
+PONTUAIS = (r"(?:envi|mand|encaminh|transfer|retorn|pass|agend|providenci|cancel|confirm|verific|analis|lig|avis"
+            r"|respond|registr|atualiz|resolv|reinici|instal|liber|bloque|desbloque|cadastr|entr|abr|fech|anot"
+            r"|repass|devolv|corrig)")
+IR_ESTAR = (r"\b(?:vou|vai|vamos|vão|ia|iam|íamos|irei|irá|iremos|irão|iria|iriam|ir)\s+estar\s+"
+            r"(?:(?:te|lhe|lhes|o|a|os|as|me|nos|vos|se)\s+)?")
+# Adjetivos que quase sempre descrevem um estado atual, que pede "estar". "Vazio" e
+# "ativo" ficam de fora: "são vazios por padrão" e "é ativo no plano pago" são essência.
+ESTADOS = r"(?:disponíve(?:l|is)|indisponíve(?:l|is)|online|offline|fora do ar)"
 
 LOCUCOES = [
     (r"a fim de", "Locução prolixa. Use 'para'."),
@@ -141,6 +179,48 @@ DECALQUES = [
     (r"(?:no|ao) final do dia", "Decalque de 'at the end of the day'. Corte, ou use 'no fim das contas'."),
     (r"(?:é|são|está|estão|era|eram) supost[oa]s? a", "Decalque de 'is supposed to'. Use 'deve' ou 'precisa'."),
     (r"em ordem (?:a|de)\s+\w+(?:ar|er|ir)", "Decalque de 'in order to'. Use 'para'."),
+    (r"perform(?:ar|a|am|e|em|ou|aram|ará|arão|aria|ando|ado|ada)",
+     "Decalque de 'perform'. Use 'ter desempenho', 'funcionar' ou 'executar', conforme o sentido."),
+    (r"realiz(?:ar|a|am|o|ei|ou|aram|ando)\s+que", "Decalque de 'realize that'. Use 'perceber que'."),
+]
+
+# Gíria técnica: verbos informais com vários sentidos. É o equivalente mais próximo dos
+# phrasal verbs informais que o STE proíbe ("spin up", "kick off").
+GIRIAS = [
+    (r"(?:sub(?:ir|a|am|o|iu|iram|imos|indo|ido|irá|irão|iria)|sobe|sobem)\s+(?:(?:o|a|os|as|um|uma|esse|essa|este"
+     r"|esta)\s+)?(?:\w+\s+)?" + OBJETO_TECNICO + r"\b",
+     "'Subir' tem vários sentidos: iniciar, publicar, enviar ou aumentar a versão. Use o verbo exato."),
+    (r"(?:sub(?:ir|a|am|o|iu|iram|imos|indo|ido|irá|irão|iria)|sobe|sobem)\s+(?:para|pra|em)\s+"
+     r"(?:a\s+)?(?:produção|homologação|staging|prod)\b",
+     "'Subir para produção' é gíria. Use 'publicar em produção'."),
+    (r"derrub(?:ar|a|am|e|em|o|ou|aram|ando|ado|ada|ará|arão)\s+(?:(?:o|a|os|as|um|uma|esse|essa|este|esta)\s+)?"
+     r"(?:\w+\s+)?" + OBJETO_TECNICO + r"\b",
+     "'Derrubar' pode ser parar de propósito ou causar uma falha. Use 'parar', 'desligar' ou 'causar a falha de'."),
+    (DAR + r"\s+(?:um|uma)\s+(?:push|pull|merge|commit|deploy|restart|reboot|refresh|reset|rollback|kill|start|stop"
+     r"|ping|fetch|build|upgrade|checada|conferida|geral|tapa)\b",
+     "Gíria com 'dar um'. Use o verbo da ação: enviar, mesclar, reiniciar, verificar."),
+    (r"bat(?:er|e|em|a|am|eu|eram|endo|ido)\s+(?:n[oa]s?|em)\s+(?:\w+\s+)?"
+     r"(?:endpoints?|api|servidor(?:es)?|serviços?|banco|url|rotas?|porta)\b",
+     "'Bater em' é gíria. Use 'chamar' ou 'enviar uma requisição a'."),
+    (DAR + r"\s+(?:pau|ruim|tilt)\b", "Gíria. Diga o que aconteceu: 'falhou', 'travou' ou 'retornou o erro X'."),
+    (r"jog(?:ar|a|am|ue|uem|ou|aram|ando)\s+(?:(?:o|a|os|as|isso|isto|tudo)\s+)?(?:n[oa]s?|para\s+[oa]s?|pr[oa]s?)\s+"
+     r"(?:log|logs|lixo|banco|cache|fila|tela)\b",
+     "'Jogar em' é gíria. Use 'gravar no log', 'apagar' ou 'enviar à fila', conforme o sentido."),
+]
+
+# Locuções verbais idiomáticas: o sentido não vem das partes (Regra 9.3 do STE).
+LOCUCOES_VERBAIS = [
+    (r"deix(?:ar|a|am|e|em|ou|aram|ará|arão|ando)\s+de\s+\w+(?:ar|er|ir)",
+     "'Deixar de' tem duas leituras: parar de ('deixou de rodar') ou não fazer ('deixou de enviar'). "
+     "Escreva 'parou de' ou 'não'."),
+    (r"acab(?:ar|a|am|e|em|ou|aram|ará|arão|ando)\s+(?:com|por)\b",
+     "'Acabar com' e 'acabar por' não dizem a ação (apagar? encerrar? resolver?). Use o verbo exato."),
+    (r"(?:d(?:ar|á|ão|eu|eram|ava|ará|ando|ado)|dei)(?:-se)?\s+conta\s+d[eoa]s?\b",
+     "'Dar conta de' pode ser conseguir fazer ou perceber. Use 'conseguir' ou 'perceber'."),
+    (r"(?:dá|dava|deu|daria)\s+(?:para|pra)\s+\w+(?:ar|er|ir)\b",
+     "'Dá para' pode ser possibilidade ou permissão. Use 'é possível' ou 'você pode'."),
+    (r"fic(?:ar|a|am|ou|aram|ará|arão)\s+de\s+\w+(?:ar|er|ir)\b",
+     "'Ficar de' é uma promessa informal. Diga se a ação aconteceu ou se ela está prevista."),
 ]
 
 PASSIVA_SE = ("recomenda sugere deve pode utiliza usa verifica observa nota considera espera sabe realiza "
@@ -175,16 +255,40 @@ RULES = [
                 r"|sem precedentes)\b", re.I),
      "Adjetivo de marketing. Corte, ou troque pela medida que justifica a afirmação."),
     ("gerundismo", OBRIGATORIA,
-     re.compile(r"\b(?:vou|vai|vamos|vão|ia|iam|íamos|irei|irá|iremos|irão|iria|iriam|ir)\s+estar\s+"
-                r"(?:(?:te|lhe|lhes|o|a|os|as|me|nos|vos|se)\s+)?\w+(?:ando|endo|indo)\b", re.I),
+     re.compile(IR_ESTAR + PONTUAIS + r"(?:ando|endo|indo)\b", re.I),
      "Gerundismo. Use o futuro simples (enviaremos) ou 'ir' + infinitivo (vamos enviar)."),
+    ("gerundismo", CONSULTIVA,
+     re.compile(IR_ESTAR + r"(?!" + PONTUAIS + r"(?:ando|endo|indo)\b)\w+(?:ando|endo|indo)\b", re.I),
+     "Possível gerundismo. Se a ação é pontual, use o futuro (enviaremos) ou 'ir' + infinitivo (vamos enviar). "
+     "Se a ação dura um período ('vai estar rodando durante a janela'), mantenha."),
+    *[("giria-tecnica", OBRIGATORIA, re.compile(r"\b" + pattern, re.I), message) for pattern, message in GIRIAS],
+    ("data-ambigua", OBRIGATORIA,
+     re.compile(r"(?<![\w/.-])\d{1,2}[/-]\d{1,2}[/-](?:\d{4}|\d{2})(?![\w/-]|[.,]\d)"),
+     "Data no formato dia/mês/ano: um leitor pode ler mês/dia. Use AAAA-MM-DD (2026-10-07)."),
+    ("data-ambigua", CONSULTIVA,
+     re.compile(r"(?<![\w/.,-])(?!24/7\b)(?=\d{2}/\d|\d/\d{2})(?:0?[1-9]|[12]\d|3[01])/(?:0?[1-9]|1[0-2])"
+                r"(?![\w/-]|[.,]\d)"),
+     "Se isto é uma data, '07/10' pode ser 7 de outubro ou 10 de julho. Use AAAA-MM-DD ou, sem o ano, "
+     "o mês abreviado (07/Out)."),
+    ("numero-ambiguo", OBRIGATORIA,
+     # Um só grupo depois do ponto e nenhuma vírgula decimal: "1.000" pode ser 1,0.
+     re.compile(r"(?<![\w.,/])(?<!nº )(?<!n\.º )(?<!n° )\d{1,3}\.\d{3}(?![\w/]|[.,]\d)"),
+     "Ponto como separador de milhar: '1.000' pode ser lido como 1,0. Agrupe com espaço (10 000) ou não "
+     "agrupe (1000)."),
+    ("linguagem-neutra", OBRIGATORIA,
+     re.compile(r"\b(?:todes|elus?|delus?|nelus?|aquelus?|daquelus?|menines|amigues|alunes|usuáries|funcionáries"
+                r"|obrigade|querides|bem-vindes|todx|elx|delx|nelx|aquelx|amigx|alunx|meninx|usuárix|funcionárix"
+                r"|obrigadx|queridx|bem-vindx|[a-zà-ú]+xs)\b|\b[a-zà-ú]+@s?(?![\w@-]|\.\w)", re.I),
+     "Forma de gênero fora da norma (VOLP, Acordo Ortográfico). Use o masculino genérico ('os usuários') ou "
+     "um nome sem flexão de gênero ('a equipe', 'quem usa')."),
     ("voz-passiva", CONSULTIVA,
      re.compile(r"\b(?:é|são|foi|foram|era|eram|será|serão|seria|seriam|seja|sejam|fosse|fossem|for|forem"
                 r"|sido|sendo|ser)\s+(?:\w+mente\s+)?" + NAO_PARTICIPIO + PARTICIPIO + r"\b", re.I),
      "Possível voz passiva. Nomeie quem age e use o verbo na ativa, a menos que quem age seja "
      "desconhecido ou irrelevante."),
     ("passiva-sintetica", CONSULTIVA,
-     re.compile(r"\b(?:" + "|".join(PASSIVA_SE) + r")-se\b", re.I),
+     re.compile(r"\b(?:" + "|".join(PASSIVA_SE) + r")-se\b"
+                r"|\b(?:não|nunca|já|também|ainda|aqui|onde)\s+se\s+(?:" + "|".join(PASSIVA_SE) + r")\b", re.I),
      "A partícula 'se' esconde quem age (passiva sintética ou sujeito indeterminado). Nomeie quem age "
      "ou use o imperativo."),
     ("tempo-composto", CONSULTIVA,
@@ -210,12 +314,24 @@ RULES = [
      "'O mesmo' no lugar de um nome. Se retoma um nome, repita o nome ou use 'ele'/'ela'. "
      "Se significa 'a mesma coisa', ignore."),
     ("gerundio-encadeado", CONSULTIVA,
+     # "incluindo" e "dependendo de" funcionam como preposição, não como outra ação
      re.compile(r",\s+(?!(?:quando|comando|brando|bando|adendo|dividendo|remendo|tremendo|lindo|infindo"
-                r"|contrabando)\b|sendo\s+que\b|tendo\s+em\s+vista\b)\w+(?:ando|endo|indo)\b", re.I),
+                r"|contrabando|incluindo|excluindo|dependendo|considerando)\b|sendo\s+que\b|tendo\s+em\s+vista\b)"
+                r"\w+(?:ando|endo|indo)\b", re.I),
      "Gerúndio depois de vírgula encadeia outra ação sem dizer a relação (ao mesmo tempo? depois? "
      "por causa?). Use uma frase nova com o verbo conjugado."),
     *[("decalque-do-ingles", CONSULTIVA, re.compile(r"\b(?:" + pattern + r")\b", re.I), message)
       for pattern, message in DECALQUES],
+    *[("locucao-verbal", CONSULTIVA, re.compile(r"\b" + pattern, re.I), message)
+      for pattern, message in LOCUCOES_VERBAIS],
+    ("palavra-ambigua", CONSULTIVA,
+     re.compile(r"\bexclu(?:ir|i|is|ímos|em|o|a|as|am|amos|iu|íram|iram|ía|íam|irá|irão|iria|iriam|indo|ído|ída"
+                r"|ídos|ídas|isse|issem)\b", re.I),
+     "'Excluir' tem dois sentidos: apagar ('exclua o arquivo') e deixar de fora ('exclua o arquivo do "
+     "pacote'). Use 'apagar' ou 'não incluir'."),
+    ("ser-estar", CONSULTIVA,
+     re.compile(r"\b(?:é|são|era|eram|foi|foram|será|serão|seja|sejam)\s+(?:\w+mente\s+)?" + ESTADOS + r"\b", re.I),
+     "Um estado atual pede 'estar' ('o servidor está indisponível'). 'Ser' descreve o que a coisa é sempre."),
     ("travessao", CONSULTIVA,
      re.compile(r"(?<=\S)\s*—\s*(?=\S)|(?<=\S)\s+–\s+(?=\S)"),
      "O travessão junta duas ideias (frase encadeada). Considere duas frases, dois-pontos ou parênteses."),
@@ -231,6 +347,11 @@ OPTIONAL_RULES = [
                 r"|(?:na|numa|em uma) versão anterior|em versões anteriores)\b", re.I),
      "Histórico de mudanças numa descrição do estado atual. Descreva o que é, não o que mudou."),
 ]
+
+# Regras calculadas fora da tabela RULES.
+DERIVED_RULES = {"frase-longa", "rotacao-de-sinonimos", "conjuncao-pendente", "exemplo-sem-falha",
+                 "diretiva-invalida"}
+KNOWN_RULES = {rule[0] for rule in RULES} | {rule[0] for rule in OPTIONAL_RULES} | DERIVED_RULES
 
 # Uma palavra, um significado: grupos de verbos que costumam se alternar para
 # a mesma ação. Só entram verbos de fato intercambiáveis. Erro, falha e defeito
@@ -293,6 +414,10 @@ INLINE_MATH = re.compile(r"(?<![\\$\w])\$(?=[^\s$])[^$\n]*?(?<=[^\s\\])\$(?![\d$
 LINK_TARGET = re.compile(r"\]\([^)\s]*\)")
 LINK_REF = re.compile(r"\]\[[^\]]*\]")
 HTML_COMMENT_INLINE = re.compile(r"<!--.*?-->")
+# Um trecho entre aspas é uma menção (um exemplo, um rótulo, uma citação), não prosa do autor.
+QUOTE = re.compile(r'"[^"\n]*"|“[^”\n]*”|«[^»\n]*»')
+# <!-- pts-lint: deve-falhar [regra ...] --> ... <!-- pts-lint: fim -->
+DIRECTIVE = re.compile(r"<!--\s*pts-lint:\s*(\S+)(.*?)-->")
 FORMAT_ARG = re.compile(r"\{[^{}\s]*\}")  # {}, {x}, {path:?}, {:>10.6}
 LINK_DEF = re.compile(r"^ {0,3}\[[^\]]+\]:\s*\S")
 HEADING = re.compile(r"^ {0,3}#{1,6}(?:\s+|$)")
@@ -301,7 +426,8 @@ WORD = re.compile(r"\w")
 # Uma frase termina em . ! ? ou … (mais aspas, parênteses ou ênfase de
 # fechamento), depois espaço, depois algo que pode abrir uma frase.
 SENTENCE_END = re.compile(r"[.!?…][\"'”’»)\]*_]*\s+(?=[\"'“‘«(\[*_]*[A-ZÀ-ÖØ-ÞΑ-Ω])")
-ABBREVIATIONS = {"ex", "p", "pp", "etc", "obs", "pág", "págs", "aprox", "fig", "figs", "cf", "sr", "sra",
+# "etc." fica de fora: antes de uma maiúscula, ele também fecha a frase.
+ABBREVIATIONS = {"ex", "p", "pp", "obs", "pág", "págs", "aprox", "fig", "figs", "cf", "sr", "sra",
                  "srs", "dr", "dra", "prof", "profa", "art", "arts", "inc", "cap", "caps", "vol", "ed",
                  "i.e", "e.g", "vs", "máx", "mín", "núm", "nº", "n", "séc", "tel", "av", "eq", "al",
                  "id", "ib", "op", "cit", "ltda", "cia"}
@@ -564,6 +690,59 @@ def _mask(text, kind):
     return text.replace("[", " ").replace("]", " ")
 
 
+def _mask_quotes(text):
+    """Troca cada menção entre aspas por uma palavra só e mantém as colunas.
+
+    Se a citação termina em . ! ? ou …, esse sinal e a aspa de fechamento ficam,
+    então uma frase citada continua a fechar a frase.
+    """
+    def placeholder(match):
+        quoted = match.group(0)
+        if len(quoted) > 2 and quoted[-2] in ".!?…":
+            return "X" + " " * (len(quoted) - 3) + quoted[-2:]
+        return "X" + " " * (len(quoted) - 1)
+
+    return QUOTE.sub(placeholder, text)
+
+
+def _regions(text):
+    """Lê as diretivas `deve-falhar` e `fim`.
+
+    Devolve as regiões ({inicio, fim, coluna, esperadas}) e os problemas
+    (linha, coluna, mensagem) das diretivas inválidas.
+    """
+    regions, problems, current = [], [], None
+    fence = False
+    for lineno, line in enumerate(text.splitlines(), 1):
+        if CODE_FENCE.match(line.strip()):
+            fence = not fence
+        if fence:
+            continue  # uma diretiva dentro de um bloco de código é só um exemplo
+        for m in DIRECTIVE.finditer(line):
+            name, args, col = m.group(1), m.group(2).strip(), m.start() + 1
+            if name == "deve-falhar":
+                if current:
+                    problems.append((lineno, col, "Região 'deve-falhar' aberta dentro de outra."))
+                    continue
+                expected = set(args.replace(",", " ").split())
+                if expected - KNOWN_RULES:
+                    problems.append((lineno, col, "Regra desconhecida na diretiva: "
+                                     + ", ".join(sorted(expected - KNOWN_RULES)) + "."))
+                current = {"inicio": lineno, "coluna": col, "esperadas": expected & KNOWN_RULES}
+            elif name == "fim":
+                if not current:
+                    problems.append((lineno, col, "Diretiva 'fim' sem 'deve-falhar' antes."))
+                    continue
+                current["fim"] = lineno
+                regions.append(current)
+                current = None
+            else:
+                problems.append((lineno, col, f"Diretiva desconhecida: {name}. Conhecidas: deve-falhar, fim."))
+    if current:
+        problems.append((current["inicio"], current["coluna"], "Região 'deve-falhar' sem 'fim'."))
+    return regions, problems
+
+
 def _paragraphs(lines):
     """Corta as linhas de um bloco Markdown em parágrafos de peças (lineno, col0, text).
 
@@ -575,11 +754,14 @@ def _paragraphs(lines):
     table = _markdown_table_cells(contents)
     paragraphs, current = [], []
     fence = math = html = False
+    quoted = False  # o parágrafo atual está dentro de uma citação (>)
 
     def flush():
+        nonlocal quoted
         if current:
             paragraphs.append(list(current))
             current.clear()
+        quoted = False
 
     for index, (lineno, col0, raw) in enumerate(lines):
         stripped = raw.strip()
@@ -623,15 +805,20 @@ def _paragraphs(lines):
             continue
         quote = BLOCKQUOTE.match(raw)
         if quote:
+            # Uma citação interrompe o parágrafo anterior ("**Antes:**" e depois "> texto").
+            if current and not quoted:
+                flush()
             col0 += quote.end()
             raw = raw[quote.end():]
         item = LIST_ITEM_START.match(raw)
         if item:
             flush()
             current.append((lineno, col0 + item.start("body"), item.group("body").rstrip()))
+            quoted = bool(quote)
             continue
         lead = len(raw) - len(raw.lstrip())
         current.append((lineno, col0 + lead, raw.strip()))
+        quoted = quoted or bool(quote)
     flush()
     return paragraphs
 
@@ -862,7 +1049,7 @@ def _sentence_spans(text):
 
 
 def lint(text, filename="<stdin>", lang=None, parts=None, max_words=MAX_WORDS,
-         max_words_strict=MAX_WORDS_STRICT, enabled=()):
+         max_words_strict=MAX_WORDS_STRICT, enabled=(), read_quotes=False):
     """Analisa um documento. Devolve (achados, total_de_palavras)."""
     if lang is None:
         lang = "rust" if filename.endswith(".rs") else "markdown"
@@ -871,6 +1058,10 @@ def lint(text, filename="<stdin>", lang=None, parts=None, max_words=MAX_WORDS,
     else:
         blocks = _markdown_blocks(text)
     rules = RULES + [rule for rule in OPTIONAL_RULES if rule[0] in enabled]
+    regions, problems = _regions(text)
+
+    def region_of(line):
+        return next((r for r in regions if r["inicio"] < line < r["fim"]), None)
 
     findings = []
     words_total = 0
@@ -887,6 +1078,8 @@ def lint(text, filename="<stdin>", lang=None, parts=None, max_words=MAX_WORDS,
         for pieces in _paragraphs(block["lines"]):
             raw = " ".join(content for _, _, content in pieces)
             masked = " ".join(_mask(content, kind) for _, _, content in pieces)
+            if not read_quotes:
+                masked = _mask_quotes(masked)
             starts, offset = [], 0
             for _, _, content in pieces:
                 starts.append(offset)
@@ -903,7 +1096,8 @@ def lint(text, filename="<stdin>", lang=None, parts=None, max_words=MAX_WORDS,
             for gi, group in enumerate(SYNONYM_GROUPS):
                 for verb in group:
                     m = _verb_match(VERB_PATTERNS[verb], masked)
-                    if m:
+                    # Um exemplo que deve falhar não conta para a escolha de termos do documento.
+                    if m and not region_of(at(m.start())[0]):
                         spot = (*at(m.start()), m.group(0))
                         if (gi, verb) not in seen_synonyms or spot < seen_synonyms[(gi, verb)]:
                             seen_synonyms[(gi, verb)] = spot
@@ -933,6 +1127,25 @@ def lint(text, filename="<stdin>", lang=None, parts=None, max_words=MAX_WORDS,
             for (lineno, col, match), verb in present[1:]:
                 finding(lineno, col, "rotacao-de-sinonimos", OBRIGATORIA, match,
                         f"'{verb}' e '{first_verb}' nomeiam a mesma ação. Escolha um e use-o sempre.")
+
+    # Os achados de uma região 'deve-falhar' são esperados: eles saem do relatório. A região
+    # falha se não tiver nenhum achado obrigatório ou se faltar uma das regras esperadas.
+    inside = {id(r): [] for r in regions}
+    outside = []
+    for f in findings:
+        region = region_of(f["linha"])
+        (inside[id(region)] if region else outside).append(f)
+    findings = outside
+    for region in regions:
+        found = inside[id(region)]
+        missing = region["esperadas"] - {f["regra"] for f in found}
+        if missing or not any(f["nivel"] == OBRIGATORIA for f in found):
+            detail = ("faltam: " + ", ".join(sorted(missing))) if missing else "nenhum achado obrigatório"
+            finding(region["inicio"], region["coluna"], "exemplo-sem-falha", OBRIGATORIA, detail,
+                    "O exemplo marcado com 'deve-falhar' não falhou como esperado. Corrija o exemplo ou a "
+                    "lista de regras da diretiva.")
+    for lineno, col, message in problems:
+        finding(lineno, col, "diretiva-invalida", OBRIGATORIA, "pts-lint", message)
     findings.sort(key=lambda f: (f["linha"], f["coluna"]))
     return findings, words_total
 
@@ -1196,7 +1409,106 @@ def selftest():
     cont = "fn f() { panic!(\"primeira metade; \\\n    segunda metade\"); }\n"
     findings, _ = lint(cont, filename="a.rs", parts={"mensagens"})
     assert [f["regra"] for f in findings] == ["ponto-e-virgula"], findings
-    print("autoteste OK")
+
+    # Uma menção entre aspas é um exemplo, não prosa: conta como uma palavra e não é analisada.
+    findings, words = lint('Não escreva "Realize uma análise; depois robusto." no log.')
+    assert findings == [] and words == 5, (findings, words)
+    assert "verbo-suporte" in _rules_of('Escreva "Realize uma análise".', read_quotes=True)
+    findings, _ = lint("Use “a fim de” e «sendo que» só como exemplo.")
+    assert findings == [], findings
+    # uma citação que termina em ponto fecha a frase
+    long_text = " ".join(["palavra"] * 15)
+    assert "frase-longa" not in _rules_of(f'Ele disse "{long_text}." {long_text.capitalize()}.')
+    # uma citação em bloco interrompe o parágrafo anterior
+    quote = " ".join(["palavra"] * 22) + "."
+    assert "frase-longa" not in _rules_of(f"**Antes:** um dois três quatro\n> {quote}")
+    # "etc." antes de uma maiúscula fecha a frase
+    half = " ".join(["palavra"] * 14)
+    assert "frase-longa" not in _rules_of(f"Aceita {half} etc. O passo {half}.")
+
+    # Região 'deve-falhar': os achados esperados somem, e a região sem falha vira um achado.
+    findings, _ = lint("<!-- pts-lint: deve-falhar ponto-e-virgula -->\na; b\n<!-- pts-lint: fim -->\nTexto.")
+    assert findings == [], findings
+    findings, _ = lint("<!-- pts-lint: deve-falhar -->\nTexto conforme.\n<!-- pts-lint: fim -->")
+    assert [f["regra"] for f in findings] == ["exemplo-sem-falha"], findings
+    findings, _ = lint("<!-- pts-lint: deve-falhar frase-longa -->\na; b\n<!-- pts-lint: fim -->")
+    assert [(f["regra"], f["trecho"]) for f in findings] == [("exemplo-sem-falha", "faltam: frase-longa")]
+    for broken in ("<!-- pts-lint: deve-falhar -->\na; b", "<!-- pts-lint: fim -->",
+                   "<!-- pts-lint: ignorar -->", "<!-- pts-lint: deve-falhar regra-x -->\na; b\n<!-- pts-lint: fim -->"):
+        assert "diretiva-invalida" in _rules_of(broken), broken
+    # uma diretiva dentro de um bloco de código é só um exemplo de uso
+    assert _rules_of("```markdown\n<!-- pts-lint: deve-falhar -->\nTexto.\n<!-- pts-lint: fim -->\n```") == []
+    # um sinônimo dentro de um exemplo que deve falhar não entra na rotação do documento
+    findings, _ = lint("Verifique o log.\n\n<!-- pts-lint: deve-falhar -->\nConfira o log; agora.\n"
+                       "<!-- pts-lint: fim -->")
+    assert findings == [], findings
+
+    # gerundismo: obrigatório com verbo pontual, consultivo com verbo de duração
+    levels = {f["nivel"] for f in lint("Vamos estar enviando o relatório.")[0] if f["regra"] == "gerundismo"}
+    assert levels == {OBRIGATORIA}, levels
+    levels = {f["nivel"] for f in lint("O backup vai estar rodando durante a janela.")[0]
+              if f["regra"] == "gerundismo"}
+    assert levels == {CONSULTIVA}, levels
+    assert "gerundio-encadeado" not in _rules_of("Aceita formatos, incluindo JSON, dependendo da versão.")
+    # gíria técnica e locuções verbais idiomáticas (Regra 9.3)
+    for text in ("Suba o servidor.", "Subiu o novo container.", "Derrube o serviço.", "Dê um push na branch.",
+                 "Bata no endpoint de saúde.", "O build deu pau.", "Jogue isso no log.", "Subiu para produção."):
+        assert "giria-tecnica" in _rules_of(text), text
+    assert "giria-tecnica" not in _rules_of("A temperatura sobe. Suba a escada. Dê um nome ao job.")
+    for text in ("O job deixou de rodar.", "Acabe com o processo.", "O agente não deu conta do erro.",
+                 "Dá para usar o cache.", "Ele ficou de enviar o log."):
+        assert "locucao-verbal" in _rules_of(text), text
+    # datas e números
+    assert "data-ambigua" in _rules_of("O deploy foi em 07/10/2026.")
+    assert [f["nivel"] for f in lint("O deploy é em 07/10.")[0]] == [CONSULTIVA]
+    assert _rules_of("O deploy foi em 2026-10-07. O próximo é em 07/Out. O plano cobre 24/48 casos.") == []
+    assert _rules_of("Use 1/3 da memória. O suporte é 24/7.") == []
+    assert "data-ambigua" in _rules_of("O prazo é 7/10.")
+    assert "numero-ambiguo" in _rules_of("O limite é 1.000 requisições.")
+    assert _rules_of("Custa 1.500,00. São 1.000.000 de linhas. Veja a Lei nº 15.263/2025 e a regra 3.7. "
+                     "O limite é 10 000.") == []
+    # gênero: só as formas da norma
+    for text in ("Todes os usuários.", "Bem-vindes ao sistema.", "Olá, todxs.", "Caros alun@s.", "Elu saiu."):
+        assert "linguagem-neutra" in _rules_of(text), text
+    assert _rules_of("Use o Linux e o fax. Escreva para nome@servidor.com. Abra a sandbox.") == []
+    # "excluir", ser e estar, decalques e "se" proclítico
+    assert "palavra-ambigua" in _rules_of("Exclua os arquivos temporários do pacote.")
+    assert "ser-estar" in _rules_of("O servidor é indisponível.")
+    assert "ser-estar" not in _rules_of("O servidor está indisponível. O campo é obrigatório. "
+                                        "Os campos são vazios por padrão. O recurso é ativo no plano pago.")
+    assert "decalque-do-ingles" in _rules_of("O módulo performa bem.")
+    assert "decalque-do-ingles" in _rules_of("Ele realizou que o disco estava cheio.")
+    assert "passiva-sintetica" in _rules_of("Não se recomenda reiniciar.")
+    assert "passiva-sintetica" not in _rules_of("Verifique se usa o cache.")
+
+    checked = _check_repository()
+    print("autoteste OK" + (f" (e {checked} arquivos do repositório)" if checked else ""))
+
+
+def _check_repository():
+    """Quando o linter está no repositório da skill, analisa os documentos dela.
+
+    Os documentos precisam passar sem achados obrigatórios. O arquivo de casos-limite
+    precisa falhar com exatamente os dois achados que o README promete.
+    """
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    docs = ["SKILL.md", "README.md", "references/regras-de-redacao.md", "examples/antes-depois.md"]
+    fixture = "examples/casos-limite-do-linter.md"
+    paths = [os.path.join(root, name) for name in docs + [fixture]]
+    if not all(os.path.exists(path) for path in paths):
+        return 0
+    failures = []
+    for name in docs:
+        with open(os.path.join(root, name), encoding="utf-8") as handle:
+            findings, _ = lint(handle.read(), filename=name)
+        failures += [f"{f['arquivo']}:{f['linha']}:{f['coluna']} {f['regra']} [{f['trecho']}]"
+                     for f in findings if f["nivel"] == OBRIGATORIA]
+    assert not failures, "Os documentos da skill têm achados obrigatórios:\n" + "\n".join(failures)
+    with open(os.path.join(root, fixture), encoding="utf-8") as handle:
+        findings, _ = lint(handle.read(), filename=fixture)
+    hard = [(f["regra"], f["linha"]) for f in findings if f["nivel"] == OBRIGATORIA]
+    assert hard == [("conjuncao-pendente", 7), ("conjuncao-pendente", 8)], hard
+    return len(paths)
 
 
 def _usage_error(message):
@@ -1204,8 +1516,16 @@ def _usage_error(message):
     return 2
 
 
+FLAGS = {"--json", "--resumo", "--ler-citacoes", "--autoteste", "--ajuda", "--help", "-h"}
+# Nomes do ste-lint.py, para que um erro de hábito mostre o nome certo.
+STE_LINT_NAMES = {"--baseline": "--linha-de-base", "--disable": "--desativar", "--enable": "--ativar",
+                  "--lang": "--linguagem", "--parts": "--partes", "--max-words": "--max-palavras",
+                  "--max-words-strict": "--max-palavras-estrito", "--summary": "--resumo",
+                  "--selftest": "--autoteste"}
+
+
 def main(argv):
-    if "--ajuda" in argv or "-h" in argv:
+    if {"--ajuda", "--help", "-h"} & set(argv):
         print(__doc__)
         return 0
     if "--autoteste" in argv:
@@ -1213,18 +1533,20 @@ def main(argv):
         return 0
     as_json = "--json" in argv
     summary = "--resumo" in argv
+    read_quotes = "--ler-citacoes" in argv
     baseline = 0
     disabled, enabled = set(), set()
     lang, parts = None, None
     max_words, max_words_strict = MAX_WORDS, MAX_WORDS_STRICT
     paths = []
-    known = ({rule[0] for rule in RULES} | {rule[0] for rule in OPTIONAL_RULES}
-             | {"frase-longa", "rotacao-de-sinonimos", "conjuncao-pendente"})
+    known = KNOWN_RULES
     i = 0
     try:
         while i < len(argv):
             a = argv[i]
-            if a == "--linha-de-base":
+            if a in FLAGS:
+                pass
+            elif a == "--linha-de-base":
                 i += 1
                 baseline = int(argv[i])
             elif a == "--desativar":
@@ -1245,11 +1567,14 @@ def main(argv):
             elif a == "--max-palavras-estrito":
                 i += 1
                 max_words_strict = int(argv[i])
-            elif not a.startswith("--"):
+            elif a.startswith("-"):
+                hint = f" Use {STE_LINT_NAMES[a]}." if a in STE_LINT_NAMES else ""
+                return _usage_error(f"opção desconhecida: {a}.{hint} Veja --ajuda.")
+            else:
                 paths.append(a)
             i += 1
     except (IndexError, ValueError):
-        return _usage_error(f"a opção {argv[i - 1] if i else ''} precisa de um valor")
+        return _usage_error(f"a opção {argv[i - 1] if i else ''} precisa de um valor numérico ou de uma lista")
     unknown = (disabled | enabled) - known
     if unknown:
         return _usage_error(f"regra(s) desconhecida(s): {', '.join(sorted(unknown))}. "
@@ -1261,7 +1586,7 @@ def main(argv):
                             f"Conhecidas: {', '.join(sorted(RUST_PARTS))}")
 
     options = dict(lang=lang, parts=parts, max_words=max_words,
-                   max_words_strict=max_words_strict, enabled=enabled)
+                   max_words_strict=max_words_strict, enabled=enabled, read_quotes=read_quotes)
     documents = ([(p, open(p, encoding="utf-8").read()) for p in paths]
                  or [("<stdin>", sys.stdin.read())])
     findings, words_total, per_file = [], 0, []

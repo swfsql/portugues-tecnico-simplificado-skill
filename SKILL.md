@@ -1,5 +1,5 @@
 ---
-name: simplified-technical-portuguese
+name: portugues-tecnico-simplificado
 description: "Use quando um texto em português do Brasil precisa ser interpretado sem um humano para resolver ambiguidades (descrições de ferramentas, mensagens de erro, instruções entre agentes, prompts de sistema, relatórios de status) e uma leitura errada tem custo real, ou quando o texto está denso, cheio de ressalvas ou fácil de interpretar mal. Gatilhos: desambiguar, português técnico simplificado, aplicar o STE100 em português, reescrever para que um agente não interprete errado, tirar o traduzês. In English: Simplified Technical Portuguese, an STE100-style rewrite of Brazilian Portuguese text. Não serve para textos criativos, de marketing ou de linguagem simples para o cidadão."
 version: 0.3.0
 ---

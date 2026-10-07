@@ -96,18 +96,23 @@ O resumo completo das regras, a adaptação ao português e as citações estão
 
 ## Instalação
 
-Copie ou clone este diretório para uma das pastas de skills do Claude Code:
+### Instalação rápida (npx skills)
 
-- `~/.claude/skills/simplified-technical-portuguese`: a skill fica disponível em todos os projetos.
-- `.claude/skills/simplified-technical-portuguese`, dentro de um projeto: a skill fica disponível só nesse projeto.
-
-Por exemplo, a partir de um clone local:
+Rode a [CLI skills](https://skills.sh/) na raiz do projeto:
 
 ```bash
-git clone /caminho/para/simplified-technical-portuguese ~/.claude/skills/simplified-technical-portuguese
+npx skills add swfsql/portugues-tecnico-simplificado-skill
 ```
 
-Com um clone, você atualiza a skill com `git pull`.
+A CLI baixa a skill do GitHub e instala a skill em `.claude/skills/portugues-tecnico-simplificado`, só para o projeto atual. Com `-g`, a skill fica em `~/.claude/skills/` e vale para todos os projetos. A CLI envia dados anônimos de uso. `DISABLE_TELEMETRY=1` ou `DO_NOT_TRACK=1` desliga o envio. Atualize a skill com `npx skills update`.
+
+### Clone
+
+```bash
+git clone https://github.com/swfsql/portugues-tecnico-simplificado-skill ~/.claude/skills/portugues-tecnico-simplificado
+```
+
+O clone deixa a skill disponível em todos os projetos do Claude Code. Para um projeto só, clone para `.claude/skills/portugues-tecnico-simplificado` dentro do projeto. Atualize a skill com `git pull`.
 
 ## Uso
 
